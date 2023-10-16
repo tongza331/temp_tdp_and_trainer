@@ -1,0 +1,13 @@
+opencv-python
+torch
+torchvision
+timm
+evaluate
+Pillow
+scikit-learn
+tqdm
+numpy
+pandas
+matplotlib
+seaborn
+torchmetrics
