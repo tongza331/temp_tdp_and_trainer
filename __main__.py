@@ -3,7 +3,7 @@ from cnn_predictor import CNN_Predictor
 from clip_trainer import CLIP_Trainer
 
 if __name__ == "__main__":
-    dataset_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\temp_classify"
+    dataset_path = ""
     
     trainer = CNN_Trainer(dataset_path)
 
@@ -38,13 +38,12 @@ if __name__ == "__main__":
     # trainer.train_cross_validation(**params_validate)
 
     ########################## PREDICTION ##########################
-    # model_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\code\cnn_trainer_v0.1.2\best_models\best_resnet50d_2_best.pt"
-
-    # image_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\all_sample\2GHV6DJS_0.png" 
-    # # image_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\temp_classify\helium_leak\2GH771MS_0.png"
-    # folder_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\increase_decrease_subplot\normal_OD-ID"
+    # model_path = ""
+    # image_path = ""
+    # # image_path = ""
+    # folder_path = ""
     
-    # # # image_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\increase_decrease_subplot\delta_tdp\2GHMY6XS_0.png"
+    # # # image_path = ""
     
     # predictor = CNN_Predictor(model_path)
 
@@ -55,6 +54,6 @@ if __name__ == "__main__":
     # predictor.predict_folder(model, folder_path)    
 
     ########################## CLIP-Logistic Regression ##########################
-    # dataset_path2 = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\increase_decrease\high_low_other"
+    # dataset_path2 = ""
     # clip_trainer = CLIP_Trainer(dataset_path)
     # clip_trainer.train_model(model_method="logistic")
