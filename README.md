@@ -1,1 +1,1 @@
-"# CNN_Trainer" 
+CNN Trainer for python scripts
