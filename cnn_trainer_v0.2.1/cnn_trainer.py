@@ -75,7 +75,7 @@ class CNN_Trainer:
             mean, std = self.custome_normalize()
             transform = Compose([Resize(input_size), ToTensor(), Normalize(mean, std)])
         else:
-            transform = Compose([Resize(input_size, interpolation=Image.Resampling.LANCZOS), 
+            transform = Compose([Resize(input_size), 
                                 # AutoContrastPIL(),
                                 ToTensor(), 
                                 # Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
@@ -426,7 +426,7 @@ class CNN_Trainer:
             ax.set_ylabel("F1 Score")
             ax.set_xticks(range(k_splits))
             ax.set_xticklabels(range(1, k_splits+1))
-            plt.savefig(f"K-FOLD validation_score_{model_name}.jpg")
+            plt.savefig(f"K-FOLD validation_score_{model_name}_{model_version}.jpg")
 
         print("======= CROSS VALIDATION EVALUATION =======")
         for fold in range(k_splits):

@@ -89,7 +89,12 @@ class TDP_Profile:
         result_tdp = result.get("TDP_early")
         if result_tdp == "yes":
             proc_time = time.time() - proc_start
-            return {"class": "early_tdp", "confidence": np.nan, "proc_time": proc_time}
+            result = {
+                "class": "early_tdp", 
+                "confidence": np.nan, 
+                "proc_time": proc_time
+            }
+            return result
 
 
     def check_early_tdp(self, csv_path):

@@ -8,37 +8,37 @@ if __name__ == "__main__":
     trainer = CNN_Trainer(dataset_path)
 
     ######################### NORMAL TRAINING ##########################
-    params_v2 = {
-        "model_name": "resnet50d",
-        "EPOCHS": 25,
-        "use_lookahead": True,
-        "SAVED": True,
-        "num_accumulate":5,
-        "lr": 1e-3,
-        "weight_decay": 0.95,
-        "model_version": "aahr_v5",
-        "batch_size": 32,
-        "valid_size":0.4,
-        "test_size":0.4,
-        "sched":"cosine",
-        "opt":"adamw",
-        "use_wandb":False,
-        "CUSTOM_MODEL":False,
-        "use_accumulate":True,
-    }
-    trainer.train_model_v2(**params_v2)
-
-    ######################### CROSS VALIDATION ##########################
-    # params_validate = {
-    #     "model_name": "resnet34d",
-    #     "num_epochs": 20,
-    #     "train_batch_size": 32,
-    #     "eval_batch_size": 64,
-    #     "k_splits": 6,
-    #     "num_accumulate": 5,
-    #     "model_version": "recovery_kv1",
+    # params_v2 = {
+    #     "model_name": "resnet50d",
+    #     "EPOCHS": 25,
+    #     "use_lookahead": True,
+    #     "SAVED": True,
+    #     "num_accumulate":5,
+    #     "lr": 1e-3,
+    #     "weight_decay": 0.95,
+    #     "model_version": "aahr_v5",
+    #     "batch_size": 32,
+    #     "valid_size":0.4,
+    #     "test_size":0.4,
+    #     "sched":"cosine",
+    #     "opt":"adamw",
+    #     "use_wandb":False,
+    #     "CUSTOM_MODEL":False,
+    #     "use_accumulate":True,
     # }
-    # trainer.train_cross_validation(**params_validate)
+    # trainer.train_model_v2(**params_v2)
+
+    ########################## CROSS VALIDATION ##########################
+    params_validate = {
+        "model_name": "resnet50d",
+        "num_epochs": 20,
+        "train_batch_size": 32,
+        "eval_batch_size": 64,
+        "k_splits": 10,
+        "num_accumulate": 6,
+        "model_version": "aahr_kv5",
+    }
+    trainer.train_cross_validation(**params_validate)
 
     ########################## PREDICTION ##########################
     # model_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\models\best_resnet34d_recovery_kv1_fold4.pt"
