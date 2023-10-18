@@ -1,5 +1,6 @@
 from cnn_predictor import *
 from plotTDP import *
+from early_tdp import *
 import json
 import time
 
@@ -48,6 +49,12 @@ class TDP_Profile:
         plt.close(fig)
 
         proc_start = time.time()
+        result = self.tdp_prediction(model_path_dict["model_high_low_path"], fig)
+        if self.check_other(result):
+            proc_end = time.time()
+            result["proc_time"] = proc_end - proc_start
+            return result
+
         result = self.tdp_prediction(model_path_dict["model_aahr_path"], fig)
         if self.check_other(result):
             proc_end = time.time()
@@ -71,4 +78,18 @@ class TDP_Profile:
             proc_end = time.time()
             result["proc_time"] = proc_end - proc_start
             return result
+        
+        ## check early tdp
+        result = self.check_early_tdp(self.csv_path)
+        result_tdp = result.get("TDP_early")
+        if result_tdp == "yes":
+            proc_time = time.time() - proc_start
+            return {"class": "early_tdp", "confidence": 100, "proc_time": proc_time}
+
+    def check_early_tdp(self, csv_path):
+        df = pd.read_csv(csv_path)
+        bh = get_bad_head(df=df)
+        early_tdp = EARLY_TDP(df=df, bh=bh)
+        result = early_tdp.run()
+        return result
 

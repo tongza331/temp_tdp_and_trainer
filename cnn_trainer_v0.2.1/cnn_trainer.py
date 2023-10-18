@@ -1,4 +1,6 @@
+from typing import Any
 from importTDP_lib import *
+from tdp_net import TdpNet
 import threading
 
 class CNN_Trainer:
@@ -73,17 +75,24 @@ class CNN_Trainer:
             mean, std = self.custome_normalize()
             transform = Compose([Resize(input_size), ToTensor(), Normalize(mean, std)])
         else:
-            transform = Compose([Resize(input_size, interpolation=Image.LANCZOS), 
-                                 ToTensor(), 
-                                #  Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
+            transform = Compose([Resize(input_size, interpolation=Image.Resampling.LANCZOS), 
+                                # AutoContrastPIL(),
+                                ToTensor(), 
+                                Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
                                 #  Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                                Normalize(mean=0., std=1.)
-                                 ])
+                                # Normalize(mean=0., std=1.)
+                                ])
         
         return transform
 
     def create_model(self, model_name, num_classes, pretrained=True):
         model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
+        model.to(self.device)
+        model.eval()
+        return model
+    
+    def custom_model(self, num_classes):
+        model = TdpNet(num_classes=num_classes)
         model.to(self.device)
         model.eval()
         return model
@@ -102,7 +111,9 @@ class CNN_Trainer:
                 sched="cosine",
                 opt="adamw",
                 use_wandb=False,
-                patience=7
+                patience=7,
+                CUSTOM_MODEL=False,
+                use_accumulate=True,
     ):
         ## intialize wandb
         if use_wandb:
@@ -116,7 +127,12 @@ class CNN_Trainer:
         num_accumulate = num_accumulate
         num_classes = len(dataset.classes)
 
-        model = self.create_model(model_name, num_classes=num_classes, pretrained=True)
+        if CUSTOM_MODEL:
+            print("Use Custom Model")
+            model = self.custom_model(num_classes=num_classes)
+        else:
+            print("Use Pre-trained Model")
+            model = self.create_model(model_name, num_classes=num_classes, pretrained=True)
 
         metric = evaluate.load("accuracy")
         optimizer = timm.optim.create_optimizer_v2(model, opt=opt, lr=lr, weight_decay=weight_decay)
@@ -169,9 +185,13 @@ class CNN_Trainer:
 
                 loss.backward()
 
-                if ((idx+1) % num_accumulate==0) or (idx + 1 == len(train_loader)):
+                if use_accumulate:
+                    if ((idx+1) % num_accumulate==0) or (idx + 1 == len(train_loader)):
+                        optimizer.step()
+                        scheduler.step_update(num_updates=num_updates)
+                        optimizer.zero_grad()
+                else:
                     optimizer.step()
-                    scheduler.step_update(num_updates=num_updates)
                     optimizer.zero_grad()
 
                 train_loss_epoch.append(loss.item())
@@ -461,3 +481,8 @@ class CNN_Trainer:
             plt.savefig(f"loss_acc_graph_{model_name}_{model_version}.jpg")
         
         plt.close("all")
+
+
+class AutoContrastPIL:
+    def __call__(self, image):
+        return ImageOps.autocontrast(image)
