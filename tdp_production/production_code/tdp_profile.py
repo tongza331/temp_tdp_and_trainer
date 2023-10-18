@@ -49,42 +49,48 @@ class TDP_Profile:
         plt.close(fig)
 
         proc_start = time.time()
+        ## HIGH-LOW
         result = self.tdp_prediction(model_path_dict["model_high_low_path"], fig)
         if self.check_other(result):
             proc_end = time.time()
             result["proc_time"] = proc_end - proc_start
             return result
 
+        ## AIRMIX-DELTA-HELIUM LEAK-REVERT
         result = self.tdp_prediction(model_path_dict["model_aahr_path"], fig)
         if self.check_other(result):
             proc_end = time.time()
             result["proc_time"] = proc_end - proc_start
             return result
         
+        ## NORMAL INCREASE-DECREASE
         result = self.tdp_prediction(model_path_dict["model_increase_decrease_path"], fig)
         if self.check_other(result):
             proc_end = time.time()
             result["proc_time"] = proc_end - proc_start
             return result
         
+        ## RECOVERY
         result = self.tdp_prediction(model_path_dict["model_recovery_path"], fig)
         if self.check_other(result):
             proc_end = time.time()
             result["proc_time"] = proc_end - proc_start
             return result
         
+        ## HIGH DECREASE-LOW INCREASE
         result = self.tdp_prediction(model_path_dict["model_hl_inc_dec_path"], fig)
         if self.check_other(result):
             proc_end = time.time()
             result["proc_time"] = proc_end - proc_start
             return result
         
-        ## check early tdp
+        ## EARLY TDP
         result = self.check_early_tdp(self.csv_path)
         result_tdp = result.get("TDP_early")
         if result_tdp == "yes":
             proc_time = time.time() - proc_start
-            return {"class": "early_tdp", "confidence": 100, "proc_time": proc_time}
+            return {"class": "early_tdp", "confidence": np.nan, "proc_time": proc_time}
+
 
     def check_early_tdp(self, csv_path):
         df = pd.read_csv(csv_path)

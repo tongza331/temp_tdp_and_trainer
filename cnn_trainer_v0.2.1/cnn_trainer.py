@@ -78,8 +78,8 @@ class CNN_Trainer:
             transform = Compose([Resize(input_size, interpolation=Image.Resampling.LANCZOS), 
                                 # AutoContrastPIL(),
                                 ToTensor(), 
-                                Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
-                                #  Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                                # Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+                                 Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                 # Normalize(mean=0., std=1.)
                                 ])
         
