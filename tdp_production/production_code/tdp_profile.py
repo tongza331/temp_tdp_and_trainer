@@ -1,6 +1,7 @@
 from cnn_predictor import *
 from plotTDP import *
 from early_tdp import *
+from multiprocessing import Pool
 import json
 import time
 
@@ -14,10 +15,14 @@ class TDP_Profile:
             data = json.load(f)
         return data
     
-    def tdp_prediction(self, model_path, fig):
-        load_start = time.time()
+    def load_internal_model(self, model_path):
         predictor = CNN_Predictor(model_path)
         model = predictor.load_model()
+        return predictor, model
+    
+    def tdp_prediction(self, model_path, fig):
+        load_start = time.time()
+        predictor, model = self.load_internal_model(model_path)
         load_end = time.time()
 
         pred_start = time.time()
@@ -35,19 +40,57 @@ class TDP_Profile:
         fig = tdp.display()
         return fig
     
-    def check_other(self, result):
-        if "other" not in result["class"]:
-            return True
-        else:
-            return False
+    def prediction_flow_dynamic(self, fig, model_path_dict):
+        ## apply multithreading to prediction and query prediction not include "other"
+        results = []
+        pool = Pool(processes=5)
+        model_pool = pool.map_async(self.tdp_prediction, model_path_dict.values(), fig)
+        results.append(model_pool.get())
+        pool.close()
+        ealry_result = self.check_early_tdp(self.csv_path)
+
+        if ealry_result.get("TDP_early") == "yes":
+            output_class = {
+                "class": "early_tdp",
+                "confidence": np.nan,
+            }
+            results.append(output_class)
         
-    ## flow: high/low -> aahr -> inc/dec -> hl_inc/dec -> recovery -> early tdp -> normal OD<ID
-    def tdp_predict_profile(self):
-        model_path_dict = self.load_json(self.model_config)
+        ## example output
+        # [
+        #   {"class":"", "condidence": "", "proc_time": ""},
+        #   {"class":"", "condidence": "", "proc_time": ""},
+        #   {"class":"", "condidence": "", "proc_time": ""},
+        # ]
 
-        fig = self.tdp_plot()
-        plt.close(fig)
+        ## post process result
+        results = self.post_process_result(results)
+        return results
+    
+    def post_process_result(self, results:list):
+        ## check if there is "other" in the result
+        ## if there is "other" in the result, remove it
+        ## if there is no "other" in the result, return the result
+        new_results = []
+        other_flags = []
 
+        for result in results:
+            pred_class = result.get("class")
+            if "other" not in pred_class:
+                new_results.append(result)
+                other_flags.append(False)
+            else:
+                other_flags.append(True)
+                
+        if all(other_flags):
+            new_results = [
+                {"class": "other"}
+            ]
+            return new_results
+        else:
+            return new_results
+
+    def prediction_flow_condition(self, fig, model_path_dict):
         proc_start = time.time()
         ## HIGH-LOW
         result = self.tdp_prediction(model_path_dict["model_high_low_path"], fig)
@@ -95,7 +138,12 @@ class TDP_Profile:
                 "proc_time": proc_time
             }
             return result
-
+    
+    def check_other(self, result):
+        if "other" not in result["class"]:
+            return True
+        else:
+            return False    
 
     def check_early_tdp(self, csv_path):
         df = pd.read_csv(csv_path)
@@ -104,3 +152,11 @@ class TDP_Profile:
         result = early_tdp.run()
         return result
 
+    ## flow: high/low -> aahr -> inc/dec -> hl_inc/dec -> recovery -> early tdp -> normal OD<ID
+    def tdp_predict_profile(self):
+        model_path_dict = self.load_json(self.model_config)
+
+        fig = self.tdp_plot()
+        plt.close(fig)
+
+        self.prediction_flow(fig, model_path_dict)

@@ -228,14 +228,19 @@ class CNN_Trainer:
                 info["train_loss"].append(np.average(train_loss_epoch))
                 info["val_loss"].append(np.average(val_loss_epoch))
 
-                if metric_val > info["best_metric_val"]:
-                    print("New Best Score!")
+                early_stopping(info["val_loss"][-1], model)
+                early_save_flag = early_stopping.SAVE_FLAG
+
+                # if (metric_val > info["best_metric_val"]) or early_save_flag:
+                if early_save_flag:
+                    # print(f"Validation Accuracy increased ({info['best_metric_val']} --> {metric_val})")
+                    print(f"New Best Score! at EPOCH {epoch+1}")
                     info["best_metric_val"] = metric_val
 
                     model_output_path = os.path.join(savedir, "best_{}_{}.pt".format(model_name, model_version))
                     
                     if SAVED:
-                        print("Saving model...")
+                        print(f"Saving model epoch {epoch+1}...")
                         torch.save({
                             "arch":model_name,
                             "state_dict": model.state_dict(),
@@ -248,11 +253,12 @@ class CNN_Trainer:
             
             print(f"Epoch: {epoch+1}/{EPOCHS} | Train Accuracy: {metric_train} | Train Loss: {np.average(train_loss_epoch)} | Validation Accuracy: {metric_val} | Validation Loss: {np.average(val_loss_epoch)}")
             
-            early_stopping(info["val_loss"][-1], model)
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
             
+            print("-------------------------------------------")
+
         all_eval_scores.append(info["best_metric_val"])
         self.plot_learning_curve(model_name, info, model_version)
         print("Fininshed Training.")
@@ -324,7 +330,7 @@ class CNN_Trainer:
             model = timm.create_model(model_name, pretrained=True, num_classes=len(dataset.classes)).to(self.device)
 
             # Load Optimizer and Scheduler
-            optimizer = timm.optim.create_optimizer_v2(model, opt="adamw", lr=1e-4, weight_decay=1e-3)
+            optimizer = timm.optim.create_optimizer_v2(model, opt="adamw", lr=1e-3, weight_decay=1e-2)
             optimizer = timm.optim.Lookahead(optimizer, alpha=0.5, k=6)
 
             scheduler = timm.scheduler.create_scheduler_v2(optimizer, num_epochs=num_epochs)[0]
