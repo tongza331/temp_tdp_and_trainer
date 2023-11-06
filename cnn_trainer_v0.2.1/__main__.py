@@ -8,35 +8,51 @@ if __name__ == "__main__":
     trainer = CNN_Trainer(dataset_path)
 
     ######################### NORMAL TRAINING ##########################
-    params_v2 = {
-        "model_name": "resnet34d",
-        "EPOCHS": 25,
-        "use_lookahead": True,
+    params_v1 = {
+        "model_name": "resnet34",
+        "EPOCHS": 50,
         "SAVED": True,
-        "num_accumulate":4,
-        "lr": 1e-3,
-        "weight_decay": 1e-4,
-        "model_version": "newAAHR_v1",
+        "lr": 1e-4,
+        "weight_decay": 1e-3,
+        "model_version": "normal_inc_dec_v2_noNorm",
         "batch_size": 32,
-        "valid_size":0.5,
+        "valid_size":0.4,
         "test_size":0.4,
         "sched":"cosine",
         "opt":"adamw",
         "use_wandb":False,
         "CUSTOM_MODEL":False,
-        "use_accumulate":True,
     }
-    trainer.train_model_v2(**params_v2)
+    trainer.train_model_v1(**params_v1)
+    # params_v2 = {
+    #     "model_name": "resnet50d",
+    #     "EPOCHS": 50,
+    #     "use_lookahead": True,
+    #     "SAVED": False,
+    #     "num_accumulate":4,
+    #     "lr": 1e-3,
+    #     "weight_decay": 1e-4,
+    #     "model_version": "all_v1",
+    #     "batch_size": 32,
+    #     "valid_size":0.5,
+    #     "test_size":0.4,
+    #     "sched":"cosine",
+    #     "opt":"adamw",
+    #     "use_wandb":False,
+    #     "CUSTOM_MODEL":False,
+    #     "use_accumulate":True,
+    # }
+    # trainer.train_model_v2(**params_v2)
 
     ########################## CROSS VALIDATION ##########################
     # params_validate = {
-    #     "model_name": "resnet50d",
+    #     "model_name": "resnet18d",
     #     "num_epochs": 20,
     #     "train_batch_size": 32,
     #     "eval_batch_size": 64,
-    #     "k_splits": 10,
-    #     "num_accumulate": 4,
-    #     "model_version": "aahr_kv5",
+    #     "k_splits": 6,
+    #     "num_accumulate": 5,
+    #     "model_version": "all_noNorm_kv1",
     # }
     # trainer.train_cross_validation(**params_validate)
 

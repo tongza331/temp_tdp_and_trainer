@@ -1,4 +1,5 @@
 from importTDP_lib import *
+from xgboost import XGBClassifier
 
 class CLIP_Trainer:
     def __init__(self, dataset_path):

@@ -2,11 +2,13 @@ from typing import Any
 from importTDP_lib import *
 from tdp_net import TdpNet
 import threading
+from losses import *
 
 class CNN_Trainer:
     def __init__(self, dataset_path):
         self.dataset_path = dataset_path
-        self.transform = self.create_transform(CUSTOM=False, input_size=(224,224))
+        self.custom_norm = False
+        self.transform = self.create_transform(CUSTOM=self.custom_norm, input_size=(224,224))
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         ## initialize list
@@ -16,14 +18,18 @@ class CNN_Trainer:
         self.val_acc_list = []
 
     def load_dataset(self):
-        dataset = ImageFolder(self.dataset_path, transform=self.transform)
+        if self.custom_norm:
+            transform = Compose([ToTensor()])
+            dataset = ImageFolder(self.dataset_path, transform=transform)
+        else:
+            dataset = ImageFolder(self.dataset_path, transform=self.transform)
         return dataset
 
     def all_loader(self, dataset):
         loader = DataLoader(dataset, batch_size=len(dataset))
         return loader
     
-    def _normalize_valie(dataloader):
+    def _normalize_valie(self, dataloader):
         batch, sum_, sqr_ = 0, 0, 0
         for x, y in dataloader:
             sum_ += torch.mean(x, axis=[0,2,3])
@@ -72,14 +78,16 @@ class CNN_Trainer:
 
     def create_transform(self, CUSTOM=False, input_size=(224,224)):
         if CUSTOM:
+            print("Custom Normalization Values")
             mean, std = self.custome_normalize()
+            print("mean, std", mean, std)
             transform = Compose([Resize(input_size), ToTensor(), Normalize(mean, std)])
         else:
             transform = Compose([Resize(input_size), 
                                 # AutoContrastPIL(),
                                 ToTensor(), 
                                 # Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
-                                 Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                                #  Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                 # Normalize(mean=0., std=1.)
                                 ])
         
@@ -96,6 +104,221 @@ class CNN_Trainer:
         model.to(self.device)
         model.eval()
         return model
+
+    def train_model_v1(self, 
+                model_name, EPOCHS, 
+                use_lookahead=False, 
+                SAVED=False, 
+                num_accumulate=4, 
+                lr=1e-4, 
+                weight_decay=1e-3, 
+                model_version="", 
+                batch_size=32,
+                valid_size=0.5,
+                test_size=0.5,
+                sched="cosine",
+                opt="adamw",
+                use_wandb=False,
+                patience=20,
+                CUSTOM_MODEL=False,
+                use_accumulate=True,
+    ):
+        ## intialize wandb
+        if use_wandb:
+            wandb.init(project="tdp_classification", name=f"{model_name}_{model_version}")
+
+        early_stopping = EarlyStopping(patience=patience, verbose=True, path=f"models/best_{model_name}_{model_version}_checkpoint.pt", SAVED=SAVED)
+                
+        dataset = self.load_dataset()
+        train_loader, val_loader, test_loader = self.prep_dataloader(dataset, batch_size=batch_size, valid_size=valid_size, test_size=test_size)
+
+        num_accumulate = num_accumulate
+        num_classes = len(dataset.classes)
+
+        if CUSTOM_MODEL:
+            print("Use Custom Model")
+            model = self.custom_model(num_classes=num_classes)
+        else:
+            print("Use Pre-trained Model")
+            model = self.create_model(model_name, num_classes=num_classes, pretrained=True)
+            
+
+        metric = evaluate.load("accuracy")
+        optimizer = timm.optim.create_optimizer_v2(model, opt=opt, lr=lr, weight_decay=weight_decay)
+
+        if use_lookahead:
+            optimizer = timm.optim.Lookahead(optimizer, alpha=0.5, k=6)
+        
+        savedir = "models"
+        os.makedirs(savedir, exist_ok=True)
+        
+        ## supervised contrastive loss
+        # criterion = SupConLoss(temperature=0.07, contrast_mode='all', base_temperature=0.07)
+
+        criterion = nn.CrossEntropyLoss()
+        scheduler = timm.scheduler.create_scheduler_v2(sched=sched ,optimizer=optimizer, num_epochs=EPOCHS, min_lr=1e-6, plateau_mode="max", patience_epochs=5)[0]
+
+        all_eval_scores = []
+        info = {
+            "metric_train": [],
+            "metric_val": [],
+            "train_loss": [],
+            "val_loss": [],
+            "best_metric_val": -999,
+            "min_metric_val": 999,
+        }
+
+        if use_wandb:
+            wandb.watch(model, criterion, log="all", log_freq=5)
+
+        print("===== Training =====")
+        for epoch in range(EPOCHS):
+            train_loss_epoch = []
+            val_loss_epoch = []
+
+            train_preds = []
+            train_targets = []
+
+            val_preds = []
+            val_targets = []
+
+            test_preds = []
+            test_targets = []
+
+            num_updates = epoch * len(train_loader)
+            print(f"Epoch: {epoch+1}/{EPOCHS}")
+
+            ## Training loop
+            model.train()
+            for idx, batch in enumerate(tqdm(train_loader)):
+                inputs, targets = batch
+                outputs = model(inputs.to(self.device))
+                loss = criterion(outputs, targets.to(self.device))
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                train_loss_epoch.append(loss.item())
+                train_preds += outputs.argmax(-1).detach().cpu().numpy().tolist()
+                train_targets += targets.tolist()
+
+            if use_lookahead:
+                optimizer.sync_lookahead()
+            
+            if sched == "plateau":
+                scheduler.step(epoch,loss)
+            elif sched == "cosine":
+                scheduler.step(epoch=epoch + 1)
+
+            ## Eval loop
+            model.eval()
+            with torch.no_grad():
+                for batch in tqdm(val_loader):
+                    inputs, targets = batch
+                    outputs = model(inputs.to(self.device))
+                    loss = criterion(outputs, targets.to(self.device))
+
+                    # Log Values
+                    val_loss_epoch.append(loss.item())
+                    val_preds += outputs.argmax(-1).detach().cpu().numpy().tolist()
+                    val_targets += targets.tolist()
+
+                metric_train = metric.compute(predictions=train_preds, references=train_targets)["accuracy"]
+                metric_val = metric.compute(predictions=val_preds, references=val_targets)["accuracy"]
+
+                info["metric_train"].append(metric_train)
+                info["metric_val"].append(metric_val)
+
+                info["train_loss"].append(np.average(train_loss_epoch))
+                info["val_loss"].append(np.average(val_loss_epoch))
+
+                early_stopping(info["val_loss"][-1], model)
+                early_save_flag = early_stopping.SAVE_FLAG
+
+                if (metric_val > info["best_metric_val"]):
+                # if early_save_flag:
+                    # print(f"Validation Accuracy increased ({info['best_metric_val']} --> {metric_val})")
+                    print(f"New Best Score! at EPOCH {epoch+1}")
+                    info["best_metric_val"] = metric_val
+
+                    model_output_path = os.path.join(savedir, "best_{}_{}.pt".format(model_name, model_version))
+                    
+                    if SAVED:
+                        print(f"Saving model epoch {epoch+1}...")
+                        torch.save({
+                            "arch":model_name,
+                            "state_dict": model.state_dict(),
+                            "class_to_idx": dataset.class_to_idx,
+                            "transform": self.transform,
+                            "best_accuracy": info["best_metric_val"],
+                            "minimum_loss": info["val_loss"][-1]
+                        }, model_output_path)
+
+            if use_wandb:
+                wandb.log({"train_loss": np.average(train_loss_epoch), "val_loss": np.average(val_loss_epoch), "train_acc": metric_train, "val_acc": metric_val})
+            
+            print(f"Epoch: {epoch+1}/{EPOCHS} | Train Accuracy: {metric_train} | Train Loss: {np.average(train_loss_epoch)} | Validation Accuracy: {metric_val} | Validation Loss: {np.average(val_loss_epoch)}")
+            
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
+            
+            print("-------------------------------------------")
+
+        all_eval_scores.append(info["best_metric_val"])
+        self.plot_learning_curve(model_name, info, model_version)
+        print("Fininshed Training.")
+
+        print("===== Evaluation =====")
+        if SAVED:
+            chpt = torch.load(model_output_path)
+            loaded_model = timm.create_model(chpt["arch"], pretrained=True, num_classes=len(chpt["class_to_idx"])).to(self.device)
+            loaded_model.load_state_dict(chpt["state_dict"])
+            loaded_model = loaded_model.to(self.device)
+        else:
+            loaded_model = model
+
+        loaded_model.eval()
+        i = 0
+        print('===== MISCLASSIFIED =====')
+        with torch.no_grad():
+            for batch in test_loader:
+                inputs, targets = batch
+                outputs = loaded_model(inputs.to(self.device))
+                targets = targets.to(self.device)
+
+                # Log Values
+                test_preds += outputs.argmax(-1).detach().cpu().tolist()
+                test_targets += targets.detach().cpu().tolist()
+
+                _, preds = torch.max(outputs, 1)
+                for t, p in zip(targets.view(-1), preds.view(-1)):
+                    if t != p:
+                        print(f"Image {i} | Target: {dataset.classes[t]} | Predicted: {dataset.classes[p]}")
+                    i += 1
+
+        print("=========== CONFUSION MATRIX ===========")
+        cm = confusion_matrix(test_targets, test_preds)
+        df_cm = self.cm2df(cm, dataset.classes)
+        print(df_cm)
+
+        print("=========== CLASSIFICATION REPORT ===========")
+        print(classification_report(test_targets, test_preds, target_names=dataset.classes))
+
+        #### OPTIONAL: SAVE LAST MODEL ####
+        if not SAVED:
+            choice_input = input("Do you want to save the last model? (y/n): ")
+            if choice_input == "y":
+                model_output_path = os.path.join(savedir, f"last_{model_name}_{model_version}.pt")
+                torch.save({
+                    "arch":model_name,
+                    "state_dict": model.state_dict(),
+                    "class_to_idx": dataset.class_to_idx,
+                    "transform": self.transform,
+                    "best_accuracy": info["best_metric_val"],
+                    "minimum_loss": info["val_loss"][-1]
+                }, model_output_path)
 
     def train_model_v2(self, 
                 model_name, EPOCHS, 
@@ -133,6 +356,22 @@ class CNN_Trainer:
         else:
             print("Use Pre-trained Model")
             model = self.create_model(model_name, num_classes=num_classes, pretrained=True)
+            # for params in model.parameters():
+            #     params.requires_grad = True
+            
+            # Modify the model head for fine-tuning
+            # num_features = model.fc.in_features
+
+            # # Additional linear layer and dropout layer
+            # model.fc = nn.Sequential(
+            #     nn.Linear(num_features, 256),  # Additional linear layer with 256 output features
+            #     nn.ELU(inplace=True),         # Activation function (you can choose other activation functions too)
+            #     nn.Dropout(0.5),               # Dropout layer with 50% probability
+            #     nn.Linear(256, num_classes)    # Final prediction fc layer
+            # )
+            
+            # model = model.to(self.device)
+            # model.eval()
 
         metric = evaluate.load("accuracy")
         optimizer = timm.optim.create_optimizer_v2(model, opt=opt, lr=lr, weight_decay=weight_decay)
@@ -231,8 +470,8 @@ class CNN_Trainer:
                 early_stopping(info["val_loss"][-1], model)
                 early_save_flag = early_stopping.SAVE_FLAG
 
-                # if (metric_val > info["best_metric_val"]) or early_save_flag:
-                if early_save_flag:
+                if (metric_val > info["best_metric_val"]):
+                # if early_save_flag:
                     # print(f"Validation Accuracy increased ({info['best_metric_val']} --> {metric_val})")
                     print(f"New Best Score! at EPOCH {epoch+1}")
                     info["best_metric_val"] = metric_val

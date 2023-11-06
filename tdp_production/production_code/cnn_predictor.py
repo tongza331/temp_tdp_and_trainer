@@ -53,16 +53,28 @@ class CNN_Predictor:
         transform = self.chpt["transform"]
         img = transform(img).unsqueeze(0).to(self.device)
         output = model(img)
-        pred = output.argmax(-1).item()
+        ## predict top 3
+        pred = output.topk(3, dim=-1).indices.squeeze().tolist()
         class_to_idx = self.chpt["class_to_idx"]
         idx_to_class = {v:k for k,v in class_to_idx.items()}
-        confi = output.softmax(-1).detach().cpu().numpy().tolist()[0][pred]
-        percent_confi = round(confi*100, 2)
+        ## confidence of each k
+        confi = output.softmax(-1).detach().cpu().numpy().tolist()[0]
+        percent_confi = [round(i*100, 2) for i in confi]
         result = {
-            "class": idx_to_class[pred],
-            "confidence": percent_confi
+            "class": [idx_to_class[i] for i in pred],
+            "confidence": [percent_confi[i] for i in pred]
         }
         return result
+        # pred = output.argmax(-1).item()
+        # class_to_idx = self.chpt["class_to_idx"]
+        # idx_to_class = {v:k for k,v in class_to_idx.items()}
+        # confi = output.softmax(-1).detach().cpu().numpy().tolist()[0][pred]
+        # percent_confi = round(confi*100, 2)
+        # result = {
+        #     "class": idx_to_class[pred],
+        #     "confidence": percent_confi
+        # }
+        # return result
     
 class FIG_TO_ARR:
     def __init__(self, fig):
@@ -70,6 +82,7 @@ class FIG_TO_ARR:
         self.fig = fig
 
     def fig2rgb_array(self):
+        self.fig.tight_layout(pad=0)
         self.fig.canvas.draw()
         buf = self.fig.canvas.tostring_rgb()
         ncols, nrows = self.fig.canvas.get_width_height()
