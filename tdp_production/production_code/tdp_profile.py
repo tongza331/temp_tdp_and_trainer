@@ -7,6 +7,7 @@ import time
 import matplotlib
 matplotlib.use('Agg')
 
+
 #   {'airmix_helium_leak_full': 0,
 #  'delta_od_id': 1,
 #  'high_decrease': 2,
@@ -80,16 +81,15 @@ class TDP_Profile:
 
             if self.prediction_mode == "all":
                 result = self.prediction_all(fig, model_path_dict, bad_head_list)
-                result["head"] = bad_head_list
-                results.append(result)
 
             elif self.prediction_mode == "condition":
                 result = self.prediction_flow_condition_v1(fig, model_path_dict, bad_head_list)
-                result["head"] = bad_head_list
-                results.append(result)
+                
+            result["head"] = bad_head_list
+            results.append(result)
 
         final_result = self.post_process_return(results)
-        return final_result
+        return final_result ## return final result
 
     def post_process_return(self, results:list()) -> dict():
         if self.prediction_mode == "all":
@@ -120,11 +120,11 @@ class TDP_Profile:
         elif self.prediction_mode == "condition":
             temp_results = []
             new_results = {}
+            
             for idx in range(len(results)):
                 temp_result = self.post_procress_condition_flow([results[idx]])
                 temp_results.append(temp_result)
             
-
             classes = []
             confidences = []
             early_flags = []
@@ -149,15 +149,18 @@ class TDP_Profile:
             return new_results
         
     def post_procress_condition_flow(self, results:list()) -> dict():
+        assert len(results) > 1, "results must be a list with one element"
+        
+        results = results[0]
         other_counter = 0
-        all_keys = list(results[0].keys())
+        all_keys = list(results.keys())
         n_all_keys = len(all_keys)
 
         other_flag = False
         other_dict = {}
         non_other_dict = {}
 
-        for key, value in results[0].items():
+        for key, value in results.items():
             if "head" in key or "early_tdp_flag" in key:
                 continue
 
@@ -167,7 +170,7 @@ class TDP_Profile:
             else:
                 non_other_dict[key] = value
 
-            if other_counter == n_all_keys - 2:
+            if other_counter == n_all_keys - 2: ## exclude head and early tdp flag
                 other_flag = True
                 break
             
@@ -175,26 +178,25 @@ class TDP_Profile:
             new_dict = {}
             avg_other_confi  = np.mean(list(other_dict.values()))
 
-            new_dict["head"] = results[0]["head"]
+            new_dict["head"] = results["head"]
             new_dict["class"] = ["other"]
             new_dict["confidence"] = [avg_other_confi]
-            new_dict["early_tdp_flag"] = results[0]["early_tdp_flag"]
-
+            new_dict["early_tdp_flag"] = results["early_tdp_flag"]
         else:
-            sorted_confidence = sorted(non_other_dict.values(), reverse=True)
-
             new_dict = {}
             temp_list = []
-
+            sorted_confidence = sorted(non_other_dict.values(), reverse=True)
+            
+            ## restore key to value
             for confi in sorted_confidence:
                 for key, value in non_other_dict.items():
                     if confi == value:
                         temp_list.append(key)
 
-            new_dict["head"] = results[0]["head"]
+            new_dict["head"] = results["head"]
             new_dict["class"] = temp_list
             new_dict["confidence"] = [sorted_confidence[0]]
-            new_dict["early_tdp_flag"] = results[0]["early_tdp_flag"]
+            new_dict["early_tdp_flag"] = results["early_tdp_flag"]
 
         return new_dict
         
@@ -253,13 +255,7 @@ class TDP_Profile:
             "early_tdp_flag": early_flag
         }
         
-        return results
-    
-    def check_other(self, result:dict()) -> bool():
-        if "other" not in result["class"]:
-            return True
-        else:
-            return False    
+        return results    
 
     def check_early_tdp(self, csv_path:str, bad_head_list:list()=[]) -> dict():
         df = pd.read_csv(csv_path)

@@ -9,12 +9,13 @@ if __name__ == "__main__":
 
     ######################### NORMAL TRAINING ##########################
     params_v1 = {
-        "model_name": "resnet34",
+        "model_name": "volo_d1_224.sail_in1k",
+        # "model_name":"sequencer2d_l.in1k",
         "EPOCHS": 50,
         "SAVED": True,
         "lr": 1e-4,
         "weight_decay": 1e-3,
-        "model_version": "normal_inc_dec_v2_noNorm",
+        "model_version": "all_v1_noNorm",
         "batch_size": 32,
         "valid_size":0.4,
         "test_size":0.4,

@@ -83,7 +83,7 @@ class CNN_Trainer:
             print("mean, std", mean, std)
             transform = Compose([Resize(input_size), ToTensor(), Normalize(mean, std)])
         else:
-            transform = Compose([Resize(input_size), 
+            transform = Compose([Resize(input_size, interpolation=Image.BICUBIC), 
                                 # AutoContrastPIL(),
                                 ToTensor(), 
                                 # Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
@@ -109,10 +109,9 @@ class CNN_Trainer:
                 model_name, EPOCHS, 
                 use_lookahead=False, 
                 SAVED=False, 
-                num_accumulate=4, 
                 lr=1e-4, 
                 weight_decay=1e-3, 
-                model_version="", 
+                model_version="",
                 batch_size=32,
                 valid_size=0.5,
                 test_size=0.5,
@@ -121,18 +120,13 @@ class CNN_Trainer:
                 use_wandb=False,
                 patience=20,
                 CUSTOM_MODEL=False,
-                use_accumulate=True,
     ):
-        ## intialize wandb
-        if use_wandb:
-            wandb.init(project="tdp_classification", name=f"{model_name}_{model_version}")
 
         early_stopping = EarlyStopping(patience=patience, verbose=True, path=f"models/best_{model_name}_{model_version}_checkpoint.pt", SAVED=SAVED)
                 
         dataset = self.load_dataset()
         train_loader, val_loader, test_loader = self.prep_dataloader(dataset, batch_size=batch_size, valid_size=valid_size, test_size=test_size)
 
-        num_accumulate = num_accumulate
         num_classes = len(dataset.classes)
 
         if CUSTOM_MODEL:
@@ -151,9 +145,6 @@ class CNN_Trainer:
         
         savedir = "models"
         os.makedirs(savedir, exist_ok=True)
-        
-        ## supervised contrastive loss
-        # criterion = SupConLoss(temperature=0.07, contrast_mode='all', base_temperature=0.07)
 
         criterion = nn.CrossEntropyLoss()
         scheduler = timm.scheduler.create_scheduler_v2(sched=sched ,optimizer=optimizer, num_epochs=EPOCHS, min_lr=1e-6, plateau_mode="max", patience_epochs=5)[0]
@@ -167,9 +158,6 @@ class CNN_Trainer:
             "best_metric_val": -999,
             "min_metric_val": 999,
         }
-
-        if use_wandb:
-            wandb.watch(model, criterion, log="all", log_freq=5)
 
         print("===== Training =====")
         for epoch in range(EPOCHS):
@@ -236,7 +224,7 @@ class CNN_Trainer:
                 early_stopping(info["val_loss"][-1], model)
                 early_save_flag = early_stopping.SAVE_FLAG
 
-                if (metric_val > info["best_metric_val"]):
+                if (metric_val > info["best_metric_val"]) or early_save_flag:
                 # if early_save_flag:
                     # print(f"Validation Accuracy increased ({info['best_metric_val']} --> {metric_val})")
                     print(f"New Best Score! at EPOCH {epoch+1}")

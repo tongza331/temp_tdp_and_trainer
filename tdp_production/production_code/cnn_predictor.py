@@ -16,6 +16,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot
 import matplotlib.pyplot as plt
+from torch.profiler import profile, record_function, ProfilerActivity
 
 ## seed
 torch.manual_seed(42)
@@ -52,6 +53,14 @@ class CNN_Predictor:
 
         transform = self.chpt["transform"]
         img = transform(img).unsqueeze(0).to(self.device)
+        
+        ## for checking inference time
+        # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+        #     with record_function("model_inference"):
+        #         output = model(img)
+        
+        # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+        
         output = model(img)
         ## predict top 3
         pred = output.topk(3, dim=-1).indices.squeeze().tolist()
@@ -75,7 +84,7 @@ class CNN_Predictor:
         #     "confidence": percent_confi
         # }
         # return result
-    
+
 class FIG_TO_ARR:
     def __init__(self, fig):
         assert isinstance(fig, plt.Figure), "fig must be a matplotlib figure"
