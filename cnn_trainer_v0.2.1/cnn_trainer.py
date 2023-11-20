@@ -107,7 +107,6 @@ class CNN_Trainer:
 
     def train_model_v1(self, 
                 model_name, EPOCHS, 
-                use_lookahead=False, 
                 SAVED=False, 
                 lr=1e-4, 
                 weight_decay=1e-3, 
@@ -139,9 +138,6 @@ class CNN_Trainer:
 
         metric = evaluate.load("accuracy")
         optimizer = timm.optim.create_optimizer_v2(model, opt=opt, lr=lr, weight_decay=weight_decay)
-
-        if use_lookahead:
-            optimizer = timm.optim.Lookahead(optimizer, alpha=0.5, k=6)
         
         savedir = "models"
         os.makedirs(savedir, exist_ok=True)
@@ -190,9 +186,6 @@ class CNN_Trainer:
                 train_loss_epoch.append(loss.item())
                 train_preds += outputs.argmax(-1).detach().cpu().numpy().tolist()
                 train_targets += targets.tolist()
-
-            if use_lookahead:
-                optimizer.sync_lookahead()
             
             if sched == "plateau":
                 scheduler.step(epoch,loss)
@@ -307,7 +300,7 @@ class CNN_Trainer:
                     "best_accuracy": info["best_metric_val"],
                     "minimum_loss": info["val_loss"][-1]
                 }, model_output_path)
-
+    
     def train_model_v2(self, 
                 model_name, EPOCHS, 
                 use_lookahead=False, 
@@ -539,7 +532,148 @@ class CNN_Trainer:
         else:
             pass
 
-    def train_cross_validation(self, model_name, num_epochs, train_batch_size=8, eval_batch_size=12, k_splits=5, num_accumulate=4, model_version="cross_validate", model_filename=""):
+    def train_cross_validation_v1(self, model_name, num_epochs, train_batch_size=8, eval_batch_size=12, k_splits=5, model_version="cross_validate", model_filename=""):
+        os.makedirs("models", exist_ok=True)
+        all_eval_scores = []
+
+        kf = StratifiedKFold(n_splits=k_splits, shuffle=True, random_state=42)
+        criterion = nn.CrossEntropyLoss()
+        metric = evaluate.load("f1")
+
+        dataset = self.load_dataset()
+
+        for fold, (train_idx, val_idx) in enumerate(kf.split(dataset, dataset.targets)):
+            print(f"Fold: {fold+1} of {k_splits}")
+
+            # Load Model
+            model = timm.create_model(model_name, pretrained=True, num_classes=len(dataset.classes)).to(self.device)
+
+            # Load Optimizer and Scheduler
+            optimizer = timm.optim.create_optimizer_v2(model, opt="adamw", lr=1e-3, weight_decay=1e-2)
+            scheduler = timm.scheduler.create_scheduler_v2(optimizer, num_epochs=num_epochs)[0]
+
+            # Load Data
+            train_dataset = torch.utils.data.Subset(dataset, train_idx)
+            val_dataset = torch.utils.data.Subset(dataset, val_idx)
+
+            train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
+            val_dataloader = DataLoader(val_dataset, batch_size=eval_batch_size, shuffle=False)
+
+            # Reset Model Info
+            info = {
+                "metric_train": [],
+                "metric_val": [],
+                "train_loss": [],
+                "val_loss": [],
+                "best_metric_val": -999,
+            }
+
+            for epoch in range(num_epochs):
+                train_loss_epoch = []
+                val_loss_epoch = []
+
+                train_preds = []
+                train_targets = []
+
+                val_preds = []
+                val_targets = []
+
+                num_updates = epoch * len(train_dataloader)
+
+                ## Training loop
+                model.train()
+                for idx, batch in enumerate(tqdm(train_dataloader)):
+                    inputs, targets = batch
+                    outputs = model(inputs.to(self.device))
+                    loss = criterion(outputs, targets.to(self.device))
+
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+                    train_loss_epoch.append(loss.item())
+                    train_preds += outputs.argmax(-1).detach().cpu().tolist()
+                    train_targets += targets.tolist()
+                
+                optimizer.sync_lookahead()
+                scheduler.step(epoch + 1)
+
+                ## Eval loop
+                model.eval()
+                with torch.no_grad():
+                    for batch in tqdm(val_dataloader):
+                        inputs, targets = batch
+                        outputs = model(inputs.to(self.device))
+                        loss = criterion(outputs, targets.to(self.device))
+                        # Log Values
+                        val_loss_epoch.append(loss.item())
+                        val_preds += outputs.argmax(-1).detach().cpu().tolist()
+                        val_targets += targets.tolist()
+                
+                # Log Data
+                metric_train = metric.compute(predictions=train_preds, references=train_targets, average="macro")["f1"]
+                metric_val = metric.compute(predictions=val_preds, references=val_targets, average="macro")["f1"]
+
+                info["metric_train"].append(metric_train)
+                info["metric_val"].append(metric_val)
+
+                info["train_loss"].append(np.average(train_loss_epoch))
+                info["val_loss"].append(np.average(val_loss_epoch))
+
+                if metric_val > info["best_metric_val"]:
+                    print("New Best Score!")
+                    info["best_metric_val"] = metric_val
+                    
+                    model_output_path = os.path.join("models", f"best_{model_name}_{model_version}_fold{fold+1}.pt")
+                    torch.save({
+                        "arch":model_name,
+                        "state_dict": model.state_dict(),
+                        "class_to_idx": dataset.class_to_idx,
+                        "transform": self.transform
+                    }, model_output_path)
+
+                # print(info)
+                print(f"Fold: {fold+1} | Epoch: {epoch+1} | Metric (f1): {metric_val} | Train Loss: {np.average(train_loss_epoch)} | Validation Loss: {np.average(val_loss_epoch)}")
+
+            all_eval_scores.append(info["best_metric_val"])
+            self.plot_learning_curve(model_name, info, model_version, mode="cross_validate", idx=fold+1)
+
+            ## plot graph of each k-fold
+            fig, ax = plt.subplots(figsize=(15,5))
+            ax.plot(all_eval_scores, marker="o", color="red")
+            ax.set_title("Validation Score")
+            ax.set_xlabel("Fold")
+            ax.set_ylabel("F1 Score")
+            ax.set_xticks(range(k_splits))
+            ax.set_xticklabels(range(1, k_splits+1))
+            plt.savefig(f"K-FOLD validation_score_{model_name}_{model_version}.jpg")
+
+        print("======= CROSS VALIDATION EVALUATION =======")
+        for fold in range(k_splits):
+            chpt = torch.load(os.path.join("models", f"best_{model_name}_{model_version}_fold{fold+1}.pt"))
+            loaded_model = timm.create_model(chpt["arch"], pretrained=True, num_classes=len(chpt["class_to_idx"])).to(self.device)
+            loaded_model.load_state_dict(chpt["state_dict"])
+            loaded_model.eval()
+            predictions = []
+            references = []
+
+            with torch.no_grad():
+                for batch in val_dataloader:
+                    inputs, targets = batch
+                    outputs = loaded_model(inputs.to(self.device))
+                    targets = targets.to(self.device)
+
+                    # Log Values
+                    predictions += outputs.argmax(-1).detach().cpu().tolist()
+                    references += targets.detach().cpu().tolist()
+            
+            print(f"=========== Fold: {fold+1} ===========")
+            cm = confusion_matrix(references, predictions)
+            df_cm = self.cm2df(cm, dataset.classes)
+            print(df_cm)
+            print(classification_report(references, predictions, target_names=dataset.classes))
+    
+    def train_cross_validation_v2(self, model_name, num_epochs, train_batch_size=8, eval_batch_size=12, k_splits=5, num_accumulate=4, model_version="cross_validate", model_filename=""):
         os.makedirs("models", exist_ok=True)
         all_eval_scores = []
 
