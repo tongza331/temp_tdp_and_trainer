@@ -298,7 +298,7 @@ class CNN_Trainer:
                     "best_accuracy": info["best_metric_val"],
                     "minimum_loss": info["val_loss"][-1]
                 }, model_output_path)
-
+    
     def train_model_v2(self, 
                 model_name, 
                 EPOCHS, 
