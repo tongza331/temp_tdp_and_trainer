@@ -128,16 +128,16 @@ if __name__ == "__main__":
     #     print(result)
     
     ##### TESTING WEIGHT ENSEMBLE #####
-    csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPW\TDP_6FPW.csv"
+    # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPW\TDP_6FPW.csv"
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPR\TDP_6FPR.csv"
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPV\TDP_6FPV_R_W.csv"
-    # hddsn = "2GHYLKTW"
-    # csv_path = f"C:/Users/1000303969\OneDrive - Western Digital/work/tdp classification/VL_TDP/6FPV_v2/TDP_{hddsn}.csv"
+    hddsn = "2GJ1VK5W"
+    csv_path = f"C:/Users/1000303969\OneDrive - Western Digital/work/tdp classification/VL_TDP/6FPV_v2/TDP_{hddsn}.csv"
     
     predictor = CNN_Predictor(model_path=None)
     model_dict = [model_path2, model_path1, model_path4]
     
-    split_ec = True
+    split_ec = False
 
     df = pd.read_csv(csv_path)
     ec = df["pfcode"].unique()
@@ -159,10 +159,10 @@ if __name__ == "__main__":
         failure_head_list = get_bad_head(df=df_filter)
         n_fh = len(failure_head_list)
         for fh_i in range(n_fh):
+            start = time.time()
             tdp = TDP(df=df_filter, bad_head_list=[failure_head_list[fh_i]])
             fig = tdp.display()
             plt.close(fig)
-            start = time.time()
             fig = predictor.convert_to_arr(fig)
             result = predictor.predict_weight_ensemble(model_dict, fig, is_path=False)
             end = time.time()

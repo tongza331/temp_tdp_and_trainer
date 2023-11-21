@@ -41,10 +41,11 @@ V_list = [
 if __name__ in "__main__":
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPW\TDP_6FPW.csv"
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPR\TDP_6FPR.csv"
-    csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPV\TDP_6FPV_R_W.csv"
-    # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPV_v2\TDP_2HGEW5XN.csv"
+    # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPV\TDP_6FPV_R_W.csv"
+    hddsn = "2HGEW5XN"
+    csv_path = f"C:/Users/1000303969/OneDrive - Western Digital/work/tdp classification/VL_TDP/6FPV_v2/TDP_{hddsn}.csv"
     
-    split_ec = True
+    split_ec = False
 
     df = pd.read_csv(csv_path)
     ec = df["pfcode"].unique()
@@ -72,7 +73,7 @@ if __name__ in "__main__":
             ## load csv
             csv_path = os.path.join(base_dir, hddsn+".csv")
             start = time.time()
-            result = tdp_profile.tdp_predict_profile(csv_path, prediction_mode="condition")
+            result = tdp_profile.tdp_predict_profile(csv_path, prediction_mode="ensemble")
             end = time.time()
             print(hddsn, result, end-start)
             print("==================================================")

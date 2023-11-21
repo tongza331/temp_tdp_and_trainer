@@ -24,13 +24,15 @@ np.random.seed(42)
 
 class CNN_Predictor:
     def __init__(self, model_path):
-        self.model_path = model_path
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
-        if self.device == torch.device("cpu"):
-            self.chpt = torch.load(self.model_path, map_location=torch.device('cpu'))
-        else:
-            self.chpt = torch.load(self.model_path)
+        if model_path is not None:
+            self.model_path = model_path
+            
+            if self.device == torch.device("cpu"):
+                self.chpt = torch.load(self.model_path, map_location=torch.device('cpu'))
+            else:
+                self.chpt = torch.load(self.model_path)
     
     def load_model(self):
         model = timm.create_model(self.chpt["arch"], pretrained=True, num_classes=len(self.chpt["class_to_idx"])).to(self.device)
@@ -65,6 +67,44 @@ class CNN_Predictor:
         result = {
             "class": [idx_to_class[i] for i in pred],
             "confidence": [percent_confi[i] for i in pred]
+        }
+        return result
+
+    def predict_weight_ensemble(self, model_path_list, image_path, is_path=False):
+        ## load model from model_dict
+        n_models = len(model_path_list)
+        for idx_model in range(n_models):
+            if is_path:
+                img = Image.open(image_path).convert("RGB")
+            else:
+                img = self.convert_to_arr(image_path)
+                img = Image.fromarray(img).convert("RGB")
+                
+            print(f"Loading model {idx_model+1}/{n_models}")
+            
+            if self.device == torch.device("cpu"):
+                chpt = torch.load(model_path_list[idx_model], map_location=torch.device('cpu'))
+            else:
+                chpt = torch.load(model_path_list[idx_model])
+                
+            model = timm.create_model(chpt["arch"], pretrained=True, num_classes=len(chpt["class_to_idx"])).to(self.device)
+            model.load_state_dict(chpt["state_dict"])
+            
+            transform = chpt["transform"]
+            img = transform(img).unsqueeze(0).to(self.device)
+            output = model(img)
+            if idx_model == 0:
+                output_sum = output
+            else:
+                output_sum += output
+        
+        ## map idx to class
+        preds = output_sum.topk(3, dim=-1).indices.squeeze(0).tolist()
+        class_to_idx = chpt["class_to_idx"]
+        idx_to_class = {v:k for k,v in class_to_idx.items()}
+        result = {
+            "class": [idx_to_class[pred] for pred in preds],
+            "confidence": output_sum.softmax(-1).detach().cpu().numpy().tolist()[0][preds[0]]
         }
         return result
 
