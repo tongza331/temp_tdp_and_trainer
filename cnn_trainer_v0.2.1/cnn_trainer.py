@@ -106,7 +106,8 @@ class CNN_Trainer:
         return model
 
     def train_model_v1(self, 
-                model_name, EPOCHS, 
+                model_name, 
+                EPOCHS, 
                 SAVED=False, 
                 lr=1e-4, 
                 weight_decay=1e-3, 
@@ -217,7 +218,7 @@ class CNN_Trainer:
                 early_stopping(info["val_loss"][-1], model)
                 early_save_flag = early_stopping.SAVE_FLAG
 
-                if (metric_val > info["best_metric_val"]) or early_save_flag:
+                if (metric_val > info["best_metric_val"]):
                 # if early_save_flag:
                     # print(f"Validation Accuracy increased ({info['best_metric_val']} --> {metric_val})")
                     print(f"New Best Score! at EPOCH {epoch+1}")
@@ -302,7 +303,8 @@ class CNN_Trainer:
                 }, model_output_path)
     
     def train_model_v2(self, 
-                model_name, EPOCHS, 
+                model_name, 
+                EPOCHS, 
                 use_lookahead=False, 
                 SAVED=False, 
                 num_accumulate=4, 
@@ -328,7 +330,6 @@ class CNN_Trainer:
         dataset = self.load_dataset()
         train_loader, val_loader, test_loader = self.prep_dataloader(dataset, batch_size=batch_size, valid_size=valid_size, test_size=test_size)
 
-        num_accumulate = num_accumulate
         num_classes = len(dataset.classes)
 
         if CUSTOM_MODEL:
@@ -337,22 +338,6 @@ class CNN_Trainer:
         else:
             print("Use Pre-trained Model")
             model = self.create_model(model_name, num_classes=num_classes, pretrained=True)
-            # for params in model.parameters():
-            #     params.requires_grad = True
-            
-            # Modify the model head for fine-tuning
-            # num_features = model.fc.in_features
-
-            # # Additional linear layer and dropout layer
-            # model.fc = nn.Sequential(
-            #     nn.Linear(num_features, 256),  # Additional linear layer with 256 output features
-            #     nn.ELU(inplace=True),         # Activation function (you can choose other activation functions too)
-            #     nn.Dropout(0.5),               # Dropout layer with 50% probability
-            #     nn.Linear(256, num_classes)    # Final prediction fc layer
-            # )
-            
-            # model = model.to(self.device)
-            # model.eval()
 
         metric = evaluate.load("accuracy")
         optimizer = timm.optim.create_optimizer_v2(model, opt=opt, lr=lr, weight_decay=weight_decay)
@@ -532,7 +517,8 @@ class CNN_Trainer:
         else:
             pass
 
-    def train_cross_validation_v1(self, model_name, num_epochs, train_batch_size=8, eval_batch_size=12, k_splits=5, model_version="cross_validate", model_filename=""):
+    def train_cross_validation_v1(self, model_name, num_epochs, train_batch_size=8, eval_batch_size=12, k_splits=5, model_version="cross_validate", lr=1e-4, weight_decay=1e-3, model_filename=""):
+        print("K-FOLD VERSION 1")
         os.makedirs("models", exist_ok=True)
         all_eval_scores = []
 
@@ -549,7 +535,7 @@ class CNN_Trainer:
             model = timm.create_model(model_name, pretrained=True, num_classes=len(dataset.classes)).to(self.device)
 
             # Load Optimizer and Scheduler
-            optimizer = timm.optim.create_optimizer_v2(model, opt="adamw", lr=1e-3, weight_decay=1e-2)
+            optimizer = timm.optim.create_optimizer_v2(model, opt="adamw", lr=lr, weight_decay=weight_decay)
             scheduler = timm.scheduler.create_scheduler_v2(optimizer, num_epochs=num_epochs)[0]
 
             # Load Data
@@ -578,8 +564,6 @@ class CNN_Trainer:
                 val_preds = []
                 val_targets = []
 
-                num_updates = epoch * len(train_dataloader)
-
                 ## Training loop
                 model.train()
                 for idx, batch in enumerate(tqdm(train_dataloader)):
@@ -595,7 +579,6 @@ class CNN_Trainer:
                     train_preds += outputs.argmax(-1).detach().cpu().tolist()
                     train_targets += targets.tolist()
                 
-                optimizer.sync_lookahead()
                 scheduler.step(epoch + 1)
 
                 ## Eval loop
