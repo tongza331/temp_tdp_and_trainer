@@ -54,13 +54,6 @@ class CNN_Predictor:
         transform = self.chpt["transform"]
         img = transform(img).unsqueeze(0).to(self.device)
         
-        ## for checking inference time
-        # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
-        #     with record_function("model_inference"):
-        #         output = model(img)
-        
-        # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
-        
         output = model(img)
         ## predict top 3
         pred = output.topk(3, dim=-1).indices.squeeze().tolist()
@@ -74,16 +67,6 @@ class CNN_Predictor:
             "confidence": [percent_confi[i] for i in pred]
         }
         return result
-        # pred = output.argmax(-1).item()
-        # class_to_idx = self.chpt["class_to_idx"]
-        # idx_to_class = {v:k for k,v in class_to_idx.items()}
-        # confi = output.softmax(-1).detach().cpu().numpy().tolist()[0][pred]
-        # percent_confi = round(confi*100, 2)
-        # result = {
-        #     "class": idx_to_class[pred],
-        #     "confidence": percent_confi
-        # }
-        # return result
 
 class FIG_TO_ARR:
     def __init__(self, fig):
