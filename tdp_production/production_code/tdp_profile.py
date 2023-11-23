@@ -34,17 +34,17 @@ class TDP_Profile:
     
     def word_post_process(self, word:str) -> str():
         if "other" in word:
-            return "other"
+            return "Other"
         elif "airmix_helium_leak" in word:
-            return "Airmix and Helium Leak"
+            return "Airmix/Helium Leak"
         elif "normal_ID-OD" in word:
-            return "normal_ID<OD"
+            return "normal TDP and ID<OD"
         elif "normal_OD-ID" in word:
-            return "normal_OD<ID"
+            return "normal TDP and OD<ID"
         elif "high_od+id" in word:
-            return "high_OD>ID"
+            return "high TDP and OD-ID"
         elif "assembly" in word or "delta_od_id" in word:
-            return "Delta OD < ID"
+            return "Delta OD-ID"
         elif "high_tdp" in word:
             return "High TDP"
         elif "low_tdp" in word:
@@ -62,7 +62,7 @@ class TDP_Profile:
         elif "normal_decrease" in word:
             return "Normal TDP and Decrease"
         elif "revert" in word:
-            return "Revert TDP"
+            return "Reverse TDP"
         else:
             return word
     

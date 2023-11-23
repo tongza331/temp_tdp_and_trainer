@@ -109,9 +109,22 @@ class TDP:
         return fig
 
 # if __name__ == '__main__':
-#     file_path = "code/tdp_production/production_code/1QG0PRZM_4CT2_0.csv"
+#     output_dir = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\TDTM\TDTM_IMAGES"
+#     file_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\TDTM\TDTM\TDP_TDTM_2.csv"
+#     # file_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\TDTM\TDDR\TDP_TDDR.csv"
 #     df = pd.read_csv(file_path)
-#     failure_head_list = get_bad_head(df=df)
-#     tdp = TDP(df=df, bad_head_list=failure_head_list)
-#     tdp.display()
-#     plt.show()
+#     hddsn_list = df['hddsn'].unique()
+    
+#     for hddsn in hddsn_list:
+#         print(hddsn)
+#         df = df[df['hddsn'] == hddsn]
+#         failure_head_list = get_bad_head(df=df)
+#         print(failure_head_list)
+#         for fh_idx in range(len(failure_head_list)):
+#             tdp = TDP(df=df, bad_head_list=[failure_head_list[fh_idx]])
+#             fig = tdp.display()
+#             ## save
+#             save_dir = os.path.join(output_dir, f"{hddsn}_{failure_head_list[fh_idx]}.png")
+#             plt.savefig(save_dir, dpi=300, bbox_inches='tight', pad_inches=0)
+#             plt.close(fig)
+#         print(hddsn, "Done.")

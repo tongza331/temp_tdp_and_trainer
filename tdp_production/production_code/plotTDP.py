@@ -36,6 +36,7 @@ if wrn.__name__ in sys.modules:
     wrn.filterwarnings('ignore')
 
 def get_bad_head(df): 
+    print(str(df['subcode'].values[0]))
     binary = bin(int(str(df['subcode'].values[0]),16))[2:][::-1]
     if int(binary) != 0: 
         bad_head_list = [ind for ind, val in enumerate(binary) if int(val) != 0]
@@ -108,10 +109,38 @@ class TDP:
             plt.subplots_adjust(wspace=0,hspace=0,right=0.85)
         return fig
 
+if __name__ == '__main__':
+    output_dir = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\TDTM\TDDR_IMAGES"
+    file_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\TDTM\TDDR\TDP_TDDR.csv"
+    df = pd.read_csv(file_path)
+    hddsn_list = df['hddsn'].unique()
+    
+    try:
+        for hddsn in hddsn_list:
+            print(hddsn)
+            df_filter = df[df['hddsn'] == hddsn]
+            failure_head_list = get_bad_head(df=df_filter)
+            print(failure_head_list)
+            for fh_idx in range(len(failure_head_list)):
+                tdp = TDP(df=df_filter, bad_head_list=[failure_head_list[fh_idx]])
+                fig = tdp.display()
+                ## save
+                save_dir = os.path.join(output_dir, f"{hddsn}_{failure_head_list[fh_idx]}.png")
+                plt.savefig(save_dir, dpi=300, bbox_inches='tight', pad_inches=0)
+                plt.close(fig)
+            print(hddsn, "Done.")
+    except Exception as e:
+        print("error", e)
+    
+    print("Done")
+
 # if __name__ == '__main__':
-#     file_path = "code/tdp_production/production_code/1QG0PRZM_4CT2_0.csv"
+#     file_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\TDTM\TDTM\TDP_TDTM_5.csv"
+#     hddsn = "2GH1NBZS"
 #     df = pd.read_csv(file_path)
+#     df = df[df['hddsn'] == hddsn]
 #     failure_head_list = get_bad_head(df=df)
+#     print(failure_head_list)
 #     tdp = TDP(df=df, bad_head_list=failure_head_list)
 #     tdp.display()
 #     plt.show()

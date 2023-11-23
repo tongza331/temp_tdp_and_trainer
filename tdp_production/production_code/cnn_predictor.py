@@ -52,7 +52,6 @@ class CNN_Predictor:
         else:
             img = self.convert_to_arr(image_path)
             img = Image.fromarray(img).convert("RGB")
-
         transform = self.chpt["transform"]
         img = transform(img).unsqueeze(0).to(self.device)
         
@@ -69,6 +68,14 @@ class CNN_Predictor:
             "confidence": [percent_confi[i] for i in pred]
         }
         return result
+
+    def _one_ensemble_pred(self, model_path, fig):
+        pass
+    
+    def predict_weight_ensemble_mpl(self, model_path_list, image_path, is_path=False):
+        n_models = len(model_path_list)
+        ## apply multiprocess
+        
 
     def predict_weight_ensemble(self, model_path_list, image_path, is_path=False):
         ## load model from model_dict

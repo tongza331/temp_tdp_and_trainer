@@ -42,9 +42,10 @@ if __name__ in "__main__":
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPW\TDP_6FPW.csv"
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPR\TDP_6FPR.csv"
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPV\TDP_6FPV_R_W.csv"
-    hddsn = "2HGEW5XN"
-    csv_path = f"C:/Users/1000303969/OneDrive - Western Digital/work/tdp classification/VL_TDP/6FPV_v2/TDP_{hddsn}.csv"
+    # hddsn = "2GG47ZKF"
+    # csv_path = f"C:/Users/1000303969/OneDrive - Western Digital/work/tdp classification/VL_TDP/6FPV_v2/TDP_{hddsn}.csv"
     
+    csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\TDTM\TDFP\TDP_TDFP_lds.csv"
     split_ec = False
 
     df = pd.read_csv(csv_path)
@@ -64,8 +65,19 @@ if __name__ in "__main__":
 
     tdp_profile = TDP_Profile(model_config)
     
+    ## df initailize
+    serial_list = []
+    fh_list = []
+    predict_list = []
+    flag_list = []
+    confi_list = []
+    n_hddsn = len(hddsn_list)
+    i = 0
+    
     for hddsn in hddsn_list:
         df_filter = df[df["hddsn"] == hddsn]
+        i+=1
+        print(f"Predicting {hddsn} {i}/{n_hddsn}")
         try:
             ## save df to csv
             base_dir = os.path.dirname(csv_path)
@@ -73,14 +85,26 @@ if __name__ in "__main__":
             ## load csv
             csv_path = os.path.join(base_dir, hddsn+".csv")
             start = time.time()
-            result = tdp_profile.tdp_predict_profile(csv_path, prediction_mode="ensemble")
+            results = tdp_profile.tdp_predict_profile(csv_path, prediction_mode="ensemble")
             end = time.time()
-            print(hddsn, result, end-start)
+            print(hddsn, results, end-start)
+            for result in results:
+                serial_list.append(hddsn)
+                fh_list.append(result["head"][0])
+                predict_list.append(result["class"][0])
+                flag_list.append(result["early_tdp_flag"][0])
+                confi_list.append(round(result["confidence"]*100,3))
             print("==================================================")
         except Exception as e:
             print(hddsn, "error", e)
+            serial_list.append(hddsn)
+            fh_list.append("error")
+            predict_list.append("error")
+            flag_list.append("error")
+            confi_list.append("error")
             print("==================================================")
-    
+    save_df = pd.DataFrame({"serial":serial_list, "fh":fh_list, "predict":predict_list, "flag":flag_list, "confidence":confi_list})
+    save_df.to_csv(os.path.join(base_dir, "result_lds.csv"), index=False)
     # tdp_profile = TDP_Profile(csv_path, model_config, prediction_mode="condition") ## all, condition
     # result = tdp_profile.tdp_predict_profile()
     # print(result)

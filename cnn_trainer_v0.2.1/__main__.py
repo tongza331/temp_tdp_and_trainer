@@ -41,28 +41,28 @@ V_list = [
 ]
 
 if __name__ == "__main__":
-    # dataset_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\temp_classify"
+    dataset_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\temp_classify"
     
-    # trainer = CNN_Trainer(dataset_path)
+    trainer = CNN_Trainer(dataset_path)
 
     ######################### NORMAL TRAINING ##########################
-    # params_v1 = {
-    #     # "model_name": "volo_d1_224.sail_in1k",
-    #     "model_name":"sequencer2d_m.in1k",
-    #     "EPOCHS": 50,
-    #     "SAVED": True,
-    #     "lr": 1e-4,
-    #     "weight_decay": 1e-3,
-    #     "model_version": "all_v2_noNorm",
-    #     "batch_size": 32,
-    #     "valid_size":0.4,
-    #     "test_size":0.4,
-    #     "sched":"cosine",
-    #     "opt":"adamw",
-    #     "use_wandb":False,
-    #     "CUSTOM_MODEL":False,
-    # }
-    # trainer.train_model_v1(**params_v1)
+    params_v1 = {
+        # "model_name": "volo_d1_224.sail_in1k",
+        "model_name":"sequencer2d_s.in1k",
+        "EPOCHS": 50,
+        "SAVED": False,
+        "lr": 1e-4,
+        "weight_decay": 1e-4,
+        "model_version": "newall_v1_noNorm",
+        "batch_size": 32,
+        "valid_size":0.4,
+        "test_size":0.4,
+        "sched":"cosine",
+        "opt":"adamw",
+        "use_wandb":False,
+        "CUSTOM_MODEL":False,
+    }
+    trainer.train_model_v1(**params_v1)
     # params_v2 = {
     #     "model_name": "sequencer2d_m.in1k",
     #     "EPOCHS": 50,
@@ -112,9 +112,9 @@ if __name__ == "__main__":
     # predictor.predict_folder(model, folder_path)    
     
     ##### MODEL ENSEMBLE #####
-    model_path1 = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\models\models_cuda\best_sequencer2d_s.in1k_all_noNorm_kv1_cuda_fold3.pt"
-    model_path2 = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\models\last_resnet34d_all_v3_noNorm.pt"
-    model_path4 = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\models\best_volo_d1_224.sail_in1k_all_v1_noNorm.pt"
+    # model_path1 = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\models\models_cuda\best_sequencer2d_s.in1k_all_noNorm_kv1_cuda_fold3.pt"
+    # model_path2 = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\models\last_resnet34d_all_v3_noNorm.pt"
+    # model_path4 = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\models\best_volo_d1_224.sail_in1k_all_v1_noNorm.pt"
     # model_path3 = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\models\best_sequencer2d_m.in1k_all_v1_noNorm.pt"
     
     # ##### TESTING WEIGHT ENSEMBLE WITH FOLDER #####
@@ -131,41 +131,41 @@ if __name__ == "__main__":
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPW\TDP_6FPW.csv"
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPR\TDP_6FPR.csv"
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPV\TDP_6FPV_R_W.csv"
-    hddsn = "2GJ1VK5W"
-    csv_path = f"C:/Users/1000303969\OneDrive - Western Digital/work/tdp classification/VL_TDP/6FPV_v2/TDP_{hddsn}.csv"
+    # hddsn = "2GHYLKTW"
+    # csv_path = f"C:/Users/1000303969\OneDrive - Western Digital/work/tdp classification/VL_TDP/6FPV_v2/TDP_{hddsn}.csv"
     
-    predictor = CNN_Predictor(model_path=None)
-    model_dict = [model_path2, model_path1, model_path4]
+    # predictor = CNN_Predictor(model_path=None)
+    # model_dict = [model_path2, model_path1, model_path4]
     
-    split_ec = False
+    # split_ec = False
 
-    df = pd.read_csv(csv_path)
-    ec = df["pfcode"].unique()
-    print(ec)
+    # df = pd.read_csv(csv_path)
+    # ec = df["pfcode"].unique()
+    # print(ec)
 
-    if split_ec:
-        if ("6FPR" in ec) and ("6FPV" not in ec):
-            hddsn_list = R_list
-        elif "6FPW" in ec:
-            hddsn_list = W_list
-        else:
-            hddsn_list = V_list
-    else:
-        print("not split ec")
-        hddsn_list = df["hddsn"].unique()
+    # if split_ec:
+    #     if ("6FPR" in ec) and ("6FPV" not in ec):
+    #         hddsn_list = R_list
+    #     elif "6FPW" in ec:
+    #         hddsn_list = W_list
+    #     else:
+    #         hddsn_list = V_list
+    # else:
+    #     print("not split ec")
+    #     hddsn_list = df["hddsn"].unique()
 
-    for hddsn in hddsn_list:
-        df_filter = df[df["hddsn"] == hddsn]
-        failure_head_list = get_bad_head(df=df_filter)
-        n_fh = len(failure_head_list)
-        for fh_i in range(n_fh):
-            start = time.time()
-            tdp = TDP(df=df_filter, bad_head_list=[failure_head_list[fh_i]])
-            fig = tdp.display()
-            plt.close(fig)
-            fig = predictor.convert_to_arr(fig)
-            result = predictor.predict_weight_ensemble(model_dict, fig, is_path=False)
-            end = time.time()
-            print(hddsn, failure_head_list[fh_i], f"Time: {end-start}")
-            print(result)
-            print("==================================================")
+    # for hddsn in hddsn_list:
+    #     df_filter = df[df["hddsn"] == hddsn]
+    #     failure_head_list = get_bad_head(df=df_filter)
+    #     n_fh = len(failure_head_list)
+    #     for fh_i in range(n_fh):
+    #         start = time.time()
+    #         tdp = TDP(df=df_filter, bad_head_list=[failure_head_list[fh_i]])
+    #         fig = tdp.display()
+    #         plt.close(fig)
+    #         fig = predictor.convert_to_arr(fig)
+    #         result = predictor.predict_weight_ensemble(model_dict, fig, is_path=False)
+    #         end = time.time()
+    #         print(hddsn, failure_head_list[fh_i], f"Time: {end-start}")
+    #         print(result)
+    #         print("==================================================")
