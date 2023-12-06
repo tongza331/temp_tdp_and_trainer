@@ -184,7 +184,7 @@ class TDP_Profile:
         for i in range(len(pred_class)):
             result["class"][i] = self.word_post_process(pred_class[i])
 
-        ## if pred is other and has early tdp flag, change word into "ealry_tdp"
+        ## if pred is other and has early tdp flag, change word into "early_tdp"
         pred_class_top1 = result["class"][0]
         if pred_class_top1 == "other" and result["early_tdp_flag"][0] == "yes":
             result["class"][0] = "Early TDP"
