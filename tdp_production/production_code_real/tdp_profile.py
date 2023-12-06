@@ -54,7 +54,7 @@ Methods:
     - tdp_predict_profile(self, csv_path:str, prediction_mode="ensemble") -> list(): Runs the main TDP prediction profile using the specified CSV file and prediction mode, and returns the final result.
     - prediction_all(self, fig:matplotlib.figure.Figure, model_path_dict:dict(), bad_head_list:list()) -> dict(): Makes TDP predictions for all models and returns the result.
     - prediction_weight_ensemble(self, fig:matplotlib.figure.Figure, model_path_dict:dict(), bad_head_list:list()) -> dict(): Makes TDP predictions using weighted ensemble models and returns the result.
-    - post_process_return(self, results:list()) -> dict(): Post-processes the TDP prediction results and returns the final result.
+    - post_process_final_return(self, results:list()) -> dict(): Post-processes the TDP prediction results and returns the final result.
     - check_early_tdp(self, csv_path:str, bad_head_list:list()=[]) -> dict(): Checks for early TDP and returns the result.
 
 Fields:
@@ -162,7 +162,7 @@ class TDP_Profile:
             result["head"] = bad_head_list
             results.append(result)
 
-        final_result = self.post_process_return(results)
+        final_result = self.post_process_final_return(results)
         return final_result ## return final result
 
     def prediction_all(self, fig:matplotlib.figure.Figure, model_path_dict:dict(), bad_head_list:list()) -> dict():
@@ -185,9 +185,7 @@ class TDP_Profile:
             result["class"][i] = self.word_post_process(pred_class[i])
 
         ## if pred is other and has early tdp flag, change word into "early_tdp"
-        pred_class_top1 = result["class"][0]
-        if pred_class_top1 == "other" and result["early_tdp_flag"][0] == "yes":
-            result["class"][0] = "Early TDP"
+        result = self._word_early_tdp(result)
 
         return result
     
@@ -211,14 +209,18 @@ class TDP_Profile:
             result["class"][i] = self.word_post_process(pred_class[i])
         
         ## if pred is other and has early tdp flag, change word into "ealry_tdp"
-        pred_class_top1 = result["class"][0]
-        if pred_class_top1 == "Other" and result["early_tdp_flag"][0] == "yes":
-            print("EEEEEEEEEEEEEEEEEEEEEEEERLY!!!")
-            result["class"][0] = "Early TDP"
+        result = self._word_early_tdp(result)
             
         return result
+    
+    def _word_early_tdp(self, result) -> str:
+        pred_class_top1 = result["class"][0]
+        flag = result["early_tdp_flag"][0]
+        if pred_class_top1 == "Other" and flag == "yes":
+            result["class"][0] = "Early TDP"
+        return result
 
-    def post_process_return(self, results:list()) -> dict():
+    def post_process_final_return(self, results:list()) -> dict():
         if self.prediction_mode == "all":
             new_results = {}
             classes = []
@@ -247,7 +249,7 @@ class TDP_Profile:
             return results
             
         
-    def check_early_tdp(self, csv_path, bad_head_list:list()=[]) -> dict():
+    def check_early_tdp(self, csv_path:str or pd.DataFrame, bad_head_list:list()=[]) -> dict():
         if isinstance(csv_path, str):
             df = pd.read_csv(csv_path)
         else:
