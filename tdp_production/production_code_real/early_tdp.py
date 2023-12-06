@@ -13,12 +13,33 @@ if wrn.__name__ in sys.modules:
 
 class EARLY_TDP:
     def __init__(self,df : pd.DataFrame(), bad_head_list : list()):
+        """
+        Initializes the object with the given DataFrame and bad_head_list.
+
+        Parameters:
+            df (pd.DataFrame): The DataFrame to be assigned to the object.
+            bad_head_list (list): The list of bad heads.
+
+        Returns:
+            None
+        """
         self.df               = df.assign(new_qualifier = lambda x : x['qualifier'].str[:3]).sort_values(by = 'radius').drop_duplicates()
         self.bad_head_list    = bad_head_list
         self.GH_df, self.BH_df = self.filter_df_gh_bh()
         self.qualifier_value  = self.filter_qualifier()
         
     def run(self):
+        """
+        Runs the function and returns a dictionary containing TDP symptoms.
+        
+        Returns:
+            tdp_symptom (dict): A dictionary containing the following keys:
+            
+                - 'head' (list): A list of TDP head values.
+                - 'TDP_level' (list): A list of TDP profile values.
+                - 'TDP_change' (list): A list indicating whether there was a change in TDP (either 'yes' or 'no').
+                - 'TDP_early' (list): A list of TDP early values.
+        """
         tdp_symptom = []
         if self.BH_df.empty:
             return tdp_symptom
@@ -35,16 +56,35 @@ class EARLY_TDP:
         return tdp_symptom
     
     def filter_df_gh_bh(self):
+        """
+        Filter the DataFrame based on the 'head' column by checking if each value is in the 'bad_head_list'.
+        
+        Returns:
+            A tuple of two DataFrames. The first DataFrame contains the rows where the 'head' column value is not in the 'bad_head_list'. 
+            The second DataFrame contains the rows where the 'head' column value is in the 'bad_head_list'.
+        """
         is_bad_head = self.df['head'].isin(self.bad_head_list)
         return self.df.loc[~is_bad_head], self.df.loc[is_bad_head]
     
 
     def filter_qualifier(self):
+        """
+        Returns a list of qualifier values derived from the sorting qualifier.
+
+        :param self: The instance of the class.
+        :return: A list of qualifier values.
+        """
         qual_df = self.sorting_qualifier()
         qualifier_value = [qual[:3] for qual in qual_df]
         return  qualifier_value
     
     def sorting_qualifier(self) -> list:
+        """
+        Returns a list of qualifiers sorted by process.
+
+        Returns:
+            list: A list of qualifiers sorted by process.
+        """
         unique_qualifier_by_process = self.df.groupby('procid')['qualifier'].unique()
         result_list = []
         for value in unique_qualifier_by_process:
@@ -53,10 +93,29 @@ class EARLY_TDP:
         return result_list
     
     def sorting_key(self, item: list) -> list:
+        """
+        Sorts the given list of items based on the first element of each item and then the remaining elements in ascending order.
+
+        Parameters:
+            item (list): The list of items to be sorted.
+
+        Returns:
+            list: The sorted list of items.
+        """
         item = sorted(item, key=lambda x: (x[0], x[1:]))
         return item
         
     def _verify_change(self,mean_good,mean_bad):
+        """
+        Verify the change between the mean values of two lists.
+
+        Parameters:
+            mean_good (list): A list of mean values representing the "good" data.
+            mean_bad (list): A list of mean values representing the "bad" data.
+
+        Returns:
+            int: The number of changes that meet the defined thresholds.
+        """
         diff_gh_threshold = 0.2
         diff_bh_threshold = 0.1
         count_change   = 0
@@ -69,10 +128,29 @@ class EARLY_TDP:
         return count_change 
                 
     def verify(self,position,threshold):
+        """
+        Verify if the given position is within the threshold distance.
+
+        Args:
+            position (dict): A dictionary containing the positions and distances.
+            threshold (float): The maximum distance allowed.
+
+        Returns:
+            str: Returns 'normal' if the minimum distance is less than or equal to the threshold. Otherwise, returns the key associated with the minimum distance in the position dictionary.
+        """
         min_distance = min(position,key = position.get)
         return 'normal' if position.get(min_distance) <= threshold else min_distance
     
     def verify_TDP_early(self,BH_df):
+        """
+        Verify if TDP is early.
+        
+        Args:
+            BH_df (pandas.DataFrame): The dataframe containing the TDP data.
+        
+        Returns:
+            bool: True if TDP is early, False otherwise.
+        """
         if BH_df.empty:
             return False
         mean_other_zone_tc = np.mean(BH_df['tdtfcdactc'].values[:9])
@@ -84,6 +162,19 @@ class EARLY_TDP:
         return diff_tc >= 0.23 and diff_tc_fitted >= 0.08
     
     def analysis(self,BH_df):
+        """
+        Generates a function comment for the given function body.
+
+        Args:
+            BH_df (pandas.DataFrame): The input DataFrame.
+
+        Returns:
+            dict: A dictionary containing information about the analysis. The dictionary has the following keys:
+                - 'head' (int or str): The head value.
+                - 'profile' (str): The profile of the bad head distance. Can be 'high', 'normal', or 'low'.
+                - 'change' (int): The count of changes between the mean_good and mean_bad values.
+                - 'early' (str): Indicates whether an early check was performed. Can be 'yes' or 'no'.
+        """
         bad_value,mean_tdp,sigma,position_badhead = list(),list(),list(),list()
         head = BH_df['head'].values[0]
         mean_bad, mean_good, early_check = [], [], []

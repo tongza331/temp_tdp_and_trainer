@@ -11,6 +11,14 @@ import os
 
 class PrestoConnection:
     def __init__(self, config_path:str, SAVE_CSV:bool=False, SET_PATH:str=None):
+        """
+        Initializes the class instance with the provided configuration path, save option, and set path.
+        
+        Parameters:
+            config_path (str): The path to the configuration file.
+            SAVE_CSV (bool, optional): A flag indicating whether to save CSV files. Defaults to False.
+            SET_PATH (str, optional): The path to set as the working directory. Defaults to None.
+        """
         self.config_path = config_path
         self.config = self.read_config(self.config_path)
         self.host_name = self.config["host_name"]
@@ -53,6 +61,18 @@ class PrestoConnection:
         }
 
     def read_config(self, config_path):
+        """
+        Reads a configuration file and returns the parsed JSON object.
+
+        Args:
+            config_path (str): The path to the configuration file.
+
+        Returns:
+            dict: The parsed JSON object representing the configuration.
+
+        Raises:
+            Exception: If there is an error while reading or parsing the file.
+        """
         try:
             with open(config_path) as f:
                 config = json.load(f)
@@ -61,6 +81,15 @@ class PrestoConnection:
         return config
     
     def connect(self):
+        """
+        Connects to the database using the provided parameters and returns the connection object.
+
+        Returns:
+            connection: The connection object to the database.
+
+        Raises:
+            Exception: If unable to connect to the database.
+        """
         try:
             connection = create_engine(self.full_host_name,
                                 connect_args={
@@ -77,6 +106,18 @@ class PrestoConnection:
         return connection
 
     def __query(self, sql_command):
+        """
+        Executes the given SQL command on the connected database and returns the result as a pandas DataFrame.
+
+        Parameters:
+            sql_command (str): The SQL command to be executed.
+
+        Returns:
+            DataFrame: The result of the SQL query as a pandas DataFrame.
+
+        Raises:
+            Exception: If there is an error while executing the SQL command.
+        """
         connection = self.connect()
         try:
             print("Querying the database")
