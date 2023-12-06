@@ -76,67 +76,71 @@ class TDP_Profile:
             data = json.load(f)
         return data
     
-    def word_post_process(self, word:str) -> str():
+    def word_post_process(self, word: str) -> str:
         if "other" in word:
             return "Other"
-        elif "airmix_helium_leak" in word:
+        if "airmix_helium_leak" in word:
             return "Airmix/Helium Leak"
-        elif "normal_ID-OD" in word:
+        if "normal_ID-OD" in word:
             return "normal TDP and ID<OD"
-        elif "normal_OD-ID" in word:
+        if "normal_OD-ID" in word:
             return "normal TDP and OD<ID"
-        elif "high_od+id" in word:
+        if "high_od+id" in word:
             return "high TDP and OD-ID"
-        elif "assembly" in word or "delta_od_id" in word:
+        if "assembly" in word or "delta_od_id" in word:
             return "Delta OD-ID"
-        elif "high_tdp" in word:
+        if "high_tdp" in word:
             return "High TDP"
-        elif "low_tdp" in word:
+        if "low_tdp" in word:
             return "Low TDP"
-        elif "high_recovery" in word:
+        if "high_recovery" in word:
             return "High TDP and Recovery"
-        elif "low_recovery" in word:
+        if "low_recovery" in word:
             return "Low TDP and Recovery"
-        elif "high_decrease" in word:
+        if "high_decrease" in word:
             return "High TDP and Decrease"
-        elif "low_increase" in word:
+        if "low_increase" in word:
             return "Low TDP and Increase"
-        elif "normal_increase" in word:
+        if "normal_increase" in word:
             return "Normal TDP and Increase"
-        elif "normal_decrease" in word:
+        if "normal_decrease" in word:
             return "Normal TDP and Decrease"
-        elif "revert" in word:
+        if "revert" in word:
             return "Reverse TDP"
-        else:
-            return word
+        return word
     
-    def load_internal_model(self, model_path:str="") -> tuple():
+    def load_internal_model(self, model_path:str="") -> tuple:
         if self.prediction_mode == "ensemble":
             predictor = CNN_Predictor(model_path=None)
+            print("Loading internal model successfully")
             return predictor
         else:
             predictor = CNN_Predictor(model_path)
             model = predictor.load_model()
             return predictor, model
 
-    def tdp_prediction(self, model_path:str, fig:matplotlib.figure.Figure) -> dict():
+    def tdp_prediction(self, model_path: str, fig: matplotlib.figure.Figure) -> dict:
+        
         if self.prediction_mode == "all":
-            predictor, model = self.load_internal_model(model_path)
             result = predictor.predict(model, fig)
+            predictor, model = self.load_internal_model(model_path)
         elif self.prediction_mode == "ensemble":
             model_list = model_path
-            predictor = self.load_internal_model()
+            predictor = self.load_internal_model(model_list)
             result = predictor.predict_weight_ensemble(model_list, fig)
+        
         return result
     
     ## main method to run
-    def tdp_predict_profile(self, csv_path:str, prediction_mode="ensemble") -> list():
+    def tdp_predict_profile(self, csv_path:str=None, df:pd.DataFrame=None, prediction_mode="ensemble") -> list():
         self.csv_path = csv_path
+        self.df = df
         self.prediction_mode = prediction_mode ## all, ensemble
-        # print(f"Prediction mode: {self.prediction_mode}")
         
         model_path_dict = self.load_json(self.model_config)
-        df = pd.read_csv(self.csv_path)
+        
+        if self.df is None and self.csv_path is not None:
+            self.df = pd.read_csv(self.csv_path)
 
         failure_head_list = get_bad_head(df=df)
         n_fh = len(failure_head_list)
@@ -165,7 +169,12 @@ class TDP_Profile:
         result = self.tdp_prediction(model_path_dict["model_all_path"], fig)
         
         ## check early tdp flag
-        early_result = self.check_early_tdp(self.csv_path, bad_head_list)
+        if self.csv_path is not None:
+            early_input = self.csv_path
+        else:
+            early_input = self.df
+            
+        early_result = self.check_early_tdp(early_input, bad_head_list)
         result["early_tdp_flag"] = early_result.get("TDP_early")
 
         ## get predict class from top-k
@@ -186,7 +195,12 @@ class TDP_Profile:
         result = self.tdp_prediction(model_path_dict["model_ensemble_path"], fig)
         
         ## check early tdp flag
-        early_result = self.check_early_tdp(self.csv_path, bad_head_list)
+        if self.csv_path is not None:
+            early_input = self.csv_path
+        else:
+            early_input = self.df
+            
+        early_result = self.check_early_tdp(early_input, bad_head_list)
         result["early_tdp_flag"] = early_result.get("TDP_early")
         
         # get predict class from top-k
@@ -233,8 +247,12 @@ class TDP_Profile:
             return results
             
         
-    def check_early_tdp(self, csv_path:str, bad_head_list:list()=[]) -> dict():
-        df = pd.read_csv(csv_path)
+    def check_early_tdp(self, csv_path, bad_head_list:list()=[]) -> dict():
+        if isinstance(csv_path, str):
+            df = pd.read_csv(csv_path)
+        else:
+            df = csv_path ## input as pd
+            
         early_tdp = EARLY_TDP(df=df, bad_head_list=bad_head_list)
         result = early_tdp.run()
         return result

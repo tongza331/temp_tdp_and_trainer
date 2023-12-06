@@ -56,8 +56,8 @@ class CNN_Predictor:
     - convert_to_arr(self, fig): Converts a matplotlib figure to a numpy array.
     - predict(self, model, image_path, is_path=False): Makes a prediction on an image using a single model.
     - _one_pred_ensemble(self, model_path, img_path, is_path=False): Performs a single prediction for ensemble prediction.
-    - predict_weight_ensemble_mpl(self, model_path_list, image_path, is_path=False): Performs ensemble prediction using multiple models with multiprocessing.
-    - predict_weight_ensemble(self, model_path_list, image_path, is_path=False): Performs ensemble prediction using multiple models.
+    - predict_weight_ensemble_mpl(self, model_path_list, image_path, is_path=False): Performs ensemble prediction using multiple models with multiprocessing. -> not finish
+    - predict_weight_ensemble(self, model_path_list, image_path, is_path=False): Performs ensemble prediction using multiple models with non-numtiprocessing.
     """
 
     def __init__(self, model_path):
@@ -84,11 +84,15 @@ class CNN_Predictor:
         Returns:
         - model: The loaded pre-trained model.
         """
-        model = timm.create_model(self.chpt["arch"], pretrained=True, num_classes=len(self.chpt["class_to_idx"])).to(self.device)
+        model = timm.create_model(
+                    self.chpt["arch"],
+                    pretrained=True,
+                    num_classes=len(self.chpt["class_to_idx"])
+                ).to(self.device)
         model.load_state_dict(self.chpt["state_dict"])
         model = model.eval()
         return model
-    
+        
     def convert_to_arr(self, fig):
         """
         Converts a matplotlib figure to a numpy array.

@@ -1,0 +1,12 @@
+{
+    "model_all_path":"code/tdp_production/production_models/best_sequencer2d_s.in1k_all_noNorm_kv1_cuda_fold3.pt",
+    "model_ensemble_path":[
+        "production_models/best_sequencer2d_m.in1k_newall_v4-2_noNorm.pt"
+    ],
+    "model_ensemble_path_copy":[
+        "code/tdp_production/production_models/best_sequencer2d_s.in1k_all_noNorm_kv1_cuda_fold3.pt",
+        "code/tdp_production/production_models/last_resnet34d_all_v3_noNorm.pt",
+        "code/tdp_production/production_models/best_volo_d1_224.sail_in1k_all_v1_noNorm.pt",
+        "code/tdp_production/production_models/best_sequencer2d_s.in1k_newall_t1_v5_noNorm.pt"
+    ]
+}

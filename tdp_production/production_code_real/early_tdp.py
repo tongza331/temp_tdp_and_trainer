@@ -126,12 +126,3 @@ class EARLY_TDP:
             'early'   : early_check
         }
         return tdp_bad_head
-
-# if __name__ == '__main__':
-#     csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\6FPW\TDP_6FPW.csv"
-#     df = pd.read_csv(csv_path)
-#     hddsn_filter = "3ZH61Z0Z"
-#     df_filter = df[df["hddsn"] == hddsn_filter]
-#     obj = EARLY_TDP(df_filter,[17])
-#     symptom = obj.run()
-#     print(symptom)

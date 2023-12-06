@@ -1,0 +1,9 @@
+{
+    "host_name":"bdp-e2e-presto.wdc.com",
+    "engine_name":"presto",
+    "port":8446,
+    "email":"napatsorn.pimsawat@wdc.com",
+    "CA_Bundle": {"verify":"C:/Users/1000303969/OneDrive - Western Digital/work/tdp classification/code/tdp_production/production_code_real/WDT_CA_bundle.pem"},
+    "protocol":"https",
+    "category":"hive"
+}

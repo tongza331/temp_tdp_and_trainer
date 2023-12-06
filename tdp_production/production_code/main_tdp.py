@@ -42,10 +42,12 @@ if __name__ in "__main__":
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPW\TDP_6FPW.csv"
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPR\TDP_6FPR.csv"
     # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\VL_TDP\6FPV\TDP_6FPV_R_W.csv"
-    # hddsn = "2GG47ZKF"
+    # hddsn = "2GHYLKTW"
     # csv_path = f"C:/Users/1000303969/OneDrive - Western Digital/work/tdp classification/VL_TDP/6FPV_v2/TDP_{hddsn}.csv"
     
-    csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\TDTM\TDFP\TDP_TDFP_lds.csv"
+    csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\2201_2205_new\TDD4\TDP_TDD4_pcm.csv"
+    # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\fornewtrain\4C1D\TDP_4C1D.csv"
+    # csv_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\my_connection\4C1D_lds.csv"
     split_ec = False
 
     df = pd.read_csv(csv_path)
@@ -64,6 +66,7 @@ if __name__ in "__main__":
         hddsn_list = df["hddsn"].unique()
 
     tdp_profile = TDP_Profile(model_config)
+    print("Using model", tdp_profile.load_json(model_config)["model_ensemble_path"])
     
     ## df initailize
     serial_list = []
@@ -71,8 +74,9 @@ if __name__ in "__main__":
     predict_list = []
     flag_list = []
     confi_list = []
-    n_hddsn = len(hddsn_list)
     i = 0
+    # hddsn_list = ["2PHM2Z9T"]
+    n_hddsn = len(hddsn_list)
     
     for hddsn in hddsn_list:
         df_filter = df[df["hddsn"] == hddsn]
@@ -104,7 +108,8 @@ if __name__ in "__main__":
             confi_list.append("error")
             print("==================================================")
     save_df = pd.DataFrame({"serial":serial_list, "fh":fh_list, "predict":predict_list, "flag":flag_list, "confidence":confi_list})
-    save_df.to_csv(os.path.join(base_dir, "result_lds.csv"), index=False)
+    save_df.to_csv(os.path.join(base_dir, "result_pcm_v4-2.csv"), index=False)
     # tdp_profile = TDP_Profile(csv_path, model_config, prediction_mode="condition") ## all, condition
     # result = tdp_profile.tdp_predict_profile()
     # print(result)
+    
