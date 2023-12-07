@@ -4,8 +4,8 @@ import pandas as pd
 import os
 import time
 
-model_config = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\code\tdp_production\production_code_real\model_path.json"
-config_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\code\tdp_production\production_code_real\sql_config.json"
+model_config = ""
+config_path = ""
 
 ## Simple USED 
 ### input as csv file
@@ -19,13 +19,13 @@ config_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classifi
 if __name__ == "__main__":
     
     serial_list = """
-        2LG9JM3K
+        
     """
-    product = "pdq"
-    procid = "6800"
-    pf_code = "4C1D"
-    start_enddt = "20220101" ## YYYYMMDD
-    end_enddt = "20220531" ## YYYYMMDD
+    product = ""
+    procid = ""
+    pf_code = ""
+    start_enddt = "" ## YYYYMMDD
+    end_enddt = "" ## YYYYMMDD
     serial_list = serial_list.split()
     
     ## setting
