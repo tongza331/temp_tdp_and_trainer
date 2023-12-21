@@ -53,6 +53,9 @@ class CNN_Trainer:
         return model
     
     def training_loop(self):
+        self.model.train()
+        torch.set_grad_enabled(True)
+        
         for idx, batch in enumerate(tqdm(self.train_loader)):
             inputs, labels = batch
             outputs = self.model(inputs.to(self.device))
@@ -71,10 +74,28 @@ class CNN_Trainer:
             if self.use_lookahead:
                 self.optimizer.sync_lookahead()
                 
-            self.scheduler.step()
+            self.train_loss_list.append(loss.item())
+            self.train_preds += outputs.argmax(-1).detach().cpu().numpy().tolist()
+            self.train_targets += labels.tolist()
+            
     
     def validation_loop(self):
-        pass
+        self.model.eval()
+        with torch.no_grad():
+            for batch in tqdm(self.val_loader):
+                inputs, labels = batch
+                outputs = self.model(inputs.to(self.device))
+                loss = self.criteria(outputs, labels.to(self.device))
+                
+                self.val_loss_epoch.append(loss.item())
+                self.val_preds += outputs.argmax(-1).detach().cpu().numpy().tolist()
+                self.val_targets += labels.tolist()
+                
+        if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            self.scheduler.step(loss)
+        elif isinstance(self.scheduler, timm.scheduler.CosineLRScheduler):
+            self.scheduler.step()
+        
     
     def __parameter_init(self):
         if self.patience is not None:
@@ -91,16 +112,24 @@ class CNN_Trainer:
         self.metric = evaluate.load("accuracy")
         self.optimizer = timm.optim.create_optimizer_v2(self.model, lr=self.lr, weight_decay=self.weight_decay)
         # self.scheduler = timm.scheduler.create_scheduler_v2(sched=self.scheduler, optimizer=self.optimizer, num_epochs=self.EPOCHS)[0]
-        if self.scheduler_name == "cosine":
-            self.scheduler = timm.scheduler.CosineLRScheduler(
-                                                                self.optimizer,
-                                                                t_initial=self.EPOCHS,
-                                                                cycle_decay=0.1,
-                                                                lr_min=1e-6,
-                                                                warmup_t=3,
-                                                                warmup_lr_init=self.lr,
-                                                                cycle_limit=1,
-                                                            )
+        try:
+            if self.scheduler_name == "cosine":
+                self.scheduler = timm.scheduler.CosineLRScheduler(
+                                                                    self.optimizer,
+                                                                    t_initial=self.EPOCHS,
+                                                                    cycle_decay=0.1,
+                                                                    lr_min=1e-6,
+                                                                    warmup_t=3,
+                                                                    warmup_lr_init=self.lr,
+                                                                    cycle_limit=1,
+                                                                )
+            elif self.scheduler_name == "reduce_plateau":
+                self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode="max", patience=5, verbose=True)
+            else:
+                print("LR Scheduler is not define.")
+        except ValueError as error:
+            return error, "Scheduler name not supported. -> Please use 'cosine' or 'reduce_plateau'."
+        
         self.criteria = nn.CrossEntropyLoss()
     
     def train_model(self,
@@ -139,10 +168,14 @@ class CNN_Trainer:
         self.alpha = alpha
         self.k = k
         
+        self.version_folder = os.path.join(self.model_save_path, self.model_version)
+        os.makedirs(self.version_folder, exist_ok=True)
+        
+        
         self.__parameter_init()
         
         all_eval_scores = []
-        info_score = {
+        info = {
             "metric_train": [],
             "metric_val": [],
             "loss_train": [],
@@ -151,28 +184,92 @@ class CNN_Trainer:
             "min_metric_val": 999
         }
         
-        train_loss_list = []
-        val_loss_list = []
-        train_acc_list = []
-        val_acc_list = []
-        
         for epoch in range(self.EPOCHS):
+            self.train_loss_epoch = []
+            self.val_loss_epoch = []
+
+            self.train_preds = []
+            self.train_targets = []
+
+            self.val_preds = []
+            self.val_targets = []
+
+            self.test_preds = []
+            self.test_targets = []
+            
             self.num_updates = epoch * len(self.train_loader)
             
-            self.model.train()
-            torch.set_grad_enabled(True)
             self.training_loop()
-            self.model.eval()
             self.validation_loop()
-        
-            # for timm cosine scheduler
-            self.scheduler.step(epoch+1)
+            
+            metric_train = self.metric.compute(predictions=self.train_preds, references=self.train_targets)["accuracy"]
+            metric_val = self.metric.compute(predictions=self.val_preds, references=self.val_targets)["accuracy"]
+            
+            info["metric_train"].append(metric_train)
+            info["metric_val"].append(metric_val)
+            info["loss_train"].append(np.average(self.train_loss_epoch))
+            info["loss_val"].append(np.average(self.val_loss_epoch))
+            
+            self.early_stopping(metric_val, self.model)
+            early_save_flag = self.early_stopping.SAVE_FLAG
+            
+            save_info = {
+                "metric_val": metric_val,
+                "best_metric_val": info["best_metric_val"],
+                "early_counter": self.early_stopping.counter,
+                "early_save_flag": early_save_flag,
+                "patience": self.patience,
+                "training_info": {
+                    "metric_train": metric_train,
+                    "metric_val": metric_val,
+                    "loss_train": np.average(self.train_loss_epoch),
+                    "loss_val": np.average(self.val_loss_epoch)
+                }
+            }
+            
+            self.__save_model(self.model, **save_info)
+            
+            print(f"Epoch: {epoch+1}/{self.EPOCHS} | Train loss: {np.average(self.train_loss_epoch):.4f} | Train acc: {metric_train:.4f} | Val loss: {np.average(self.val_loss_epoch):.4f} | Val acc: {metric_val:.4f}")
+            
+            if self.early_stopping.early_stop:
+                print("Early stopping")
+                break
     
     def train_cross_validation(self):
         pass
     
-    def plot_learning_curve(self):
-        pass
+    def __save_model(self, model, **save_info):
+        if (save_info["metric_val"] > save_info["best_metric_val"]) or save_info["early_save_flag"] and save_info["early_counter"] <= save_info["patience"]:
+            print("New best model saved.")
+            
+            model_output_path = os.path.join(self.model_save_path, f"best_{self.model_name}_{self.model_version}.pt")
+            
+            if self.SAVED_BEST:
+                torch.save({
+                    "arch": self.model_name,
+                    "state_dict": model.state_dict(),
+                    "class_to_idx": self.train_loader.dataset.class_to_idx,
+                    "transform": self.transform,
+                    "training_info": save_info["training_info"]
+                }, model_output_path)
+    
+    def plot_learning_curve(self, model_name, info, model_version, mode="", idx=0):
+        fig, ax = plt.subplots(1,2, figsize=(15,5))
+        ax[0].plot(info["train_loss"], label="train_loss", marker="o", color="red")
+        ax[0].plot(info["val_loss"], label="val_loss", marker="o", color="blue")
+        ax[0].set_title("Loss")
+        ax[0].legend()
+        ax[1].plot(info["metric_train"], label="train_acc", marker="o", color="red")
+        ax[1].plot(info["metric_val"], label="val_acc", marker="o", color="blue")
+        ax[1].set_title("Accuracy")
+        ax[1].legend()
+
+        if mode == "cross_validate":
+            plt.savefig(f"loss_acc_graph_{model_name}_{model_version}_fold{idx}.jpg")
+        else:
+            plt.savefig(f"loss_acc_graph_{model_name}_{model_version}.jpg")
+        
+        plt.close("all")
     
     def _cm2df(self):
         pass

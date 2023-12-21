@@ -1,4 +1,5 @@
-from cnn_trainer import CNN_Trainer
+# from cnn_trainer import CNN_Trainer
+from cnn_trainer_refactor import CNN_Trainer
 from cnn_predictor import CNN_Predictor
 from clip_trainer import CLIP_Trainer
 import pandas as pd
