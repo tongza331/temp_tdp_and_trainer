@@ -76,39 +76,26 @@ class TDP_Profile:
             data = json.load(f)
         return data
     
-    def word_post_process(self, word:str) -> str():
+    def word_post_process(self, word: str) -> str:
         if "other" in word:
             return "Other"
-        elif "airmix_helium_leak" in word:
+        elif "airmix_heliumleak" in word:
             return "Airmix/Helium Leak"
-        elif "normal_ID-OD" in word:
-            return "normal TDP and ID<OD"
-        elif "normal_OD-ID" in word:
-            return "normal TDP and OD<ID"
-        elif "high_od+id" in word:
-            return "high TDP and OD-ID"
-        elif "assembly" in word or "delta_od_id" in word:
-            return "Delta OD-ID"
-        elif "high_tdp" in word:
+        elif "decrease" in word:
+            return "TDP Shift (Decrease)"
+        elif "increase" in word:
+            return "TDP Shift (Increase)"
+        elif "delta_odid" in word:
+            return "Delta TDP at OD or ID"
+        elif "hightdp" in word:
             return "High TDP"
-        elif "low_tdp" in word:
+        elif "lowtdp" in word:
             return "Low TDP"
-        elif "high_recovery" in word:
-            return "High TDP and Recovery"
-        elif "low_recovery" in word:
-            return "Low TDP and Recovery"
-        elif "high_decrease" in word:
-            return "High TDP and Decrease"
-        elif "low_increase" in word:
-            return "Low TDP and Increase"
-        elif "normal_increase" in word:
-            return "Normal TDP and Increase"
-        elif "normal_decrease" in word:
-            return "Normal TDP and Decrease"
         elif "revert" in word:
             return "Reverse TDP"
-        else:
-            return word
+        elif "shift" in word:
+            return "TDP Shift"
+        return word
     
     def load_internal_model(self, model_path:str="") -> tuple():
         if self.prediction_mode == "ensemble":

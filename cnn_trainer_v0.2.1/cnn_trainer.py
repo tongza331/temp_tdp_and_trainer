@@ -133,7 +133,9 @@ class CNN_Trainer:
         else:
             print("Use Pre-trained Model")
             model = self.create_model(model_name, num_classes=num_classes, pretrained=True)
-            
+        
+        model.train()
+
 
         metric = evaluate.load("accuracy")
         optimizer = timm.optim.create_optimizer_v2(model, opt=opt, lr=lr, weight_decay=weight_decay)
@@ -204,35 +206,35 @@ class CNN_Trainer:
                     val_preds += outputs.argmax(-1).detach().cpu().numpy().tolist()
                     val_targets += targets.tolist()
 
-                metric_train = metric.compute(predictions=train_preds, references=train_targets)["accuracy"]
-                metric_val = metric.compute(predictions=val_preds, references=val_targets)["accuracy"]
+            metric_train = metric.compute(predictions=train_preds, references=train_targets)["accuracy"]
+            metric_val = metric.compute(predictions=val_preds, references=val_targets)["accuracy"]
 
-                info["metric_train"].append(metric_train)
-                info["metric_val"].append(metric_val)
+            info["metric_train"].append(metric_train)
+            info["metric_val"].append(metric_val)
 
-                info["train_loss"].append(np.average(train_loss_epoch))
-                info["val_loss"].append(np.average(val_loss_epoch))
+            info["train_loss"].append(np.average(train_loss_epoch))
+            info["val_loss"].append(np.average(val_loss_epoch))
 
-                early_stopping(info["val_loss"][-1], model)
-                early_save_flag = early_stopping.SAVE_FLAG
+            early_stopping(info["val_loss"][-1], model)
+            early_save_flag = early_stopping.SAVE_FLAG
 
-                if ((metric_val > info["best_metric_val"]) or early_save_flag) and early_stopping.counter <= 5:
-                # if early_save_flag:
-                    print(f"New Best Score! at EPOCH {epoch+1}")
-                    info["best_metric_val"] = metric_val
+            if ((metric_val > info["best_metric_val"]) or early_save_flag) and early_stopping.counter <= 5:
+            # if early_save_flag:
+                print(f"New Best Score! at EPOCH {epoch+1}")
+                info["best_metric_val"] = metric_val
 
-                    model_output_path = os.path.join(savedir, "best_{}_{}.pt".format(model_name, model_version))
-                    
-                    if SAVED:
-                        print(f"Saving model epoch {epoch+1}...")
-                        torch.save({
-                            "arch":model_name,
-                            "state_dict": model.state_dict(),
-                            "class_to_idx": dataset.class_to_idx,
-                            "transform": self.transform,
-                            "best_accuracy": info["best_metric_val"],
-                            "minimum_loss": info["val_loss"][-1]
-                        }, model_output_path)
+                model_output_path = os.path.join(savedir, "best_{}_{}.pt".format(model_name, model_version))
+                
+                if SAVED:
+                    print(f"Saving model epoch {epoch+1}...")
+                    torch.save({
+                        "arch":model_name,
+                        "state_dict": model.state_dict(),
+                        "class_to_idx": dataset.class_to_idx,
+                        "transform": self.transform,
+                        "best_accuracy": info["best_metric_val"],
+                        "minimum_loss": info["val_loss"][-1]
+                    }, model_output_path)
 
             if use_wandb:
                 wandb.log({"train_loss": np.average(train_loss_epoch), "val_loss": np.average(val_loss_epoch), "train_acc": metric_train, "val_acc": metric_val})

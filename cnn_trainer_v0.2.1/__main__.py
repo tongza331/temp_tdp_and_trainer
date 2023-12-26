@@ -1,5 +1,5 @@
-# from cnn_trainer import CNN_Trainer
-from cnn_trainer_refactor import CNN_Trainer
+from cnn_trainer import CNN_Trainer
+# from cnn_trainer_refactor import CNN_Trainer
 from cnn_predictor import CNN_Predictor
 from clip_trainer import CLIP_Trainer
 import pandas as pd
@@ -42,46 +42,46 @@ V_list = [
 ]
 
 if __name__ == "__main__":
-    dataset_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\temp_classify"
+    dataset_path = r"C:\Users\1000303969\OneDrive - Western Digital\work\tdp classification\data\test_ds"
     
     trainer = CNN_Trainer(dataset_path)
 
     ######################### NORMAL TRAINING ##########################
-    params_v1 = {
-        # "model_name": "volo_d1_224.sail_in1k",
-        "model_name":"sequencer2d_s.in1k",
+    # params_v1 = {
+    #     # "model_name": "volo_d1_224.sail_in1k",
+    #     "model_name":"sequencer2d_s.in1k",
+    #     "EPOCHS": 6,
+    #     "SAVED": False,
+    #     "lr": 1e-4,
+    #     "weight_decay": 1e-3,
+    #     "model_version": "test",
+    #     "batch_size": 32,
+    #     "valid_size":0.3,
+    #     "test_size":0.2,
+    #     "sched":"cosine",
+    #     "opt":"AdamW",
+    #     "use_wandb":False,
+    #     "CUSTOM_MODEL":False,
+    # }
+    # trainer.train_model_v1(**params_v1)
+    params_v2 = {
+        "model_name": "sequencer2d_m.in1k",
         "EPOCHS": 50,
-        "SAVED": False,
+        "use_lookahead": True,
+        "SAVED": True,
+        "num_accumulate":5,
         "lr": 1e-4,
-        "weight_decay": 1e-4,
-        "model_version": "newall_v1_noNorm",
+        "weight_decay": 1e-3,
+        "model_version": "test",
         "batch_size": 32,
         "valid_size":0.4,
         "test_size":0.4,
         "sched":"cosine",
         "opt":"adamw",
-        "use_wandb":False,
         "CUSTOM_MODEL":False,
+        "use_accumulate":True,
     }
-    trainer.train_model_v1(**params_v1)
-    # params_v2 = {
-    #     "model_name": "sequencer2d_m.in1k",
-    #     "EPOCHS": 50,
-    #     "use_lookahead": True,
-    #     "SAVED": True,
-    #     "num_accumulate":5,
-    #     "lr": 1e-4,
-    #     "weight_decay": 1e-3,
-    #     "model_version": "all_v2_Norm",
-    #     "batch_size": 32,
-    #     "valid_size":0.4,
-    #     "test_size":0.4,
-    #     "sched":"cosine",
-    #     "opt":"adamw",
-    #     "CUSTOM_MODEL":False,
-    #     "use_accumulate":True,
-    # }
-    # trainer.train_model_v2(**params_v2)
+    trainer.train_model_v2(**params_v2)
 
     ########################## CROSS VALIDATION ##########################
     # params_validate = {
